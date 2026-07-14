@@ -62,6 +62,41 @@ function TrendArrow({ trend }: { trend: 'up' | 'down' | 'flat' }) {
   return <span className={`sc-trend sc-trend-${trend}`}>{glyph}</span>
 }
 
+/** Inline SVG sparkline of weekly talk ratios (0..1) with a threshold line. */
+function TalkSparkline({ points, threshold }: { points: number[]; threshold: number }) {
+  const w = 200
+  const h = 44
+  const pad = 5
+  const n = points.length
+  const x = (i: number) => (n <= 1 ? pad : pad + (i / (n - 1)) * (w - 2 * pad))
+  const y = (v: number) => h - pad - Math.max(0, Math.min(1, v)) * (h - 2 * pad)
+  const line = points.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const thY = y(threshold).toFixed(1)
+  const last = points[n - 1]
+  return (
+    <svg
+      className="sc-spark"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      role="img"
+      aria-label={`Weekly talk-ratio trend, latest ${Math.round(last * 100)}%`}
+    >
+      <line x1={pad} x2={w - pad} y1={thY} y2={thY} className="sc-spark-threshold" />
+      <polyline points={line} className="sc-spark-line" />
+      {points.map((v, i) => (
+        <circle
+          key={i}
+          cx={x(i)}
+          cy={y(v)}
+          r={i === n - 1 ? 3.5 : 2}
+          className={v >= threshold ? 'sc-spark-dot-warn' : 'sc-spark-dot'}
+        />
+      ))}
+    </svg>
+  )
+}
+
 export default function SalesPage() {
   const [status, setStatus] = useState<SalesStatus | null>(null)
   const [reps, setReps] = useState<RepOverview[]>([])
@@ -485,6 +520,18 @@ function RepDetail({
               <span>{Math.round(dashboard.callWeek.nextStepRate * 100)}% secured a next step</span>
             )}
           </div>
+          {dashboard.callTrend.length >= 2 && (
+            <div className="sc-spark-wrap">
+              <TalkSparkline
+                points={dashboard.callTrend.map((c) => c.avgTalkRatio)}
+                threshold={talkRatioThreshold}
+              />
+              <span className="sc-muted">
+                talk ratio · last {dashboard.callTrend.length} weeks (dashed ={' '}
+                {Math.round(talkRatioThreshold * 100)}% threshold)
+              </span>
+            </div>
+          )}
           {dashboard.latestCalls.length > 0 && (
             <table className="sc-calls">
               <thead>

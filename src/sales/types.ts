@@ -289,6 +289,8 @@ export interface RepDashboard {
   latestCoaching: CoachingPlan | null;
   /** Latest week's call analytics aggregate, if any. */
   callWeek: CallWeek | null;
+  /** Per-week call aggregates, oldest-first — for the talk-ratio trend. */
+  callTrend: CallWeek[];
   /** Individual analyzed calls for the latest week (most recent first). */
   latestCalls: CallRecord[];
   /** A data-driven coaching trigger from call behavior, if fired. */

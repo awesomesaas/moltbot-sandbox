@@ -408,6 +408,7 @@ export class SalesService {
     const rec = pipRecommendation(evaluations, this.config.pip);
     const latestCoaching = await this.store.getLatestCoachingPlan(repId);
     const { callWeek, opportunity, calls } = await this.callContext(repId, latest);
+    const callTrend = await this.buildCallTrend(repId);
 
     return {
       rep,
@@ -420,9 +421,25 @@ export class SalesService {
       pips,
       latestCoaching,
       callWeek,
+      callTrend,
       latestCalls: calls,
       opportunity,
     };
+  }
+
+  /** Per-week talk-ratio aggregates for a rep, oldest-first. */
+  private async buildCallTrend(repId: string): Promise<CallWeek[]> {
+    const all = await this.store.getCalls(repId);
+    const byWeek = new Map<string, CallRecord[]>();
+    for (const c of all) {
+      const bucket = byWeek.get(c.weekOf);
+      if (bucket) bucket.push(c);
+      else byWeek.set(c.weekOf, [c]);
+    }
+    return [...byWeek.keys()]
+      .sort()
+      .map((week) => aggregateCalls(repId, week, byWeek.get(week) as CallRecord[]))
+      .filter((cw): cw is CallWeek => cw !== null);
   }
 
   /** Manually create/update a rep. */

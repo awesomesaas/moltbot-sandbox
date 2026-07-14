@@ -214,6 +214,17 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(dash!.callWeek).not.toBeNull();
   });
 
+  it('builds a per-week talk-ratio trend, oldest-first', async () => {
+    const { svc, store } = makeService();
+    await svc.sync(6);
+    const henry = (await store.listReps()).find((r) => r.name === 'Henry Cole')!;
+    const dash = await svc.getRepDashboard(henry.id);
+    expect(dash!.callTrend).toHaveLength(6);
+    const weeks = dash!.callTrend.map((c) => c.weekOf);
+    expect([...weeks].sort()).toEqual(weeks); // ascending
+    expect(dash!.callTrend.every((c) => c.avgTalkRatio > 0)).toBe(true);
+  });
+
   it('seedDemo populates weeks and coaching for every rep', async () => {
     const { svc, store } = makeService();
     const result = await svc.seedDemo(6);

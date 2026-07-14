@@ -336,6 +336,35 @@ button:disabled {
   margin-bottom: 0.75rem;
   color: var(--text-secondary);
 }
+.sc-spark-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+}
+.sc-spark {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.sc-spark-line {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+.sc-spark-threshold {
+  stroke: var(--error-color);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+.sc-spark-dot {
+  fill: var(--text-secondary);
+}
+.sc-spark-dot-warn {
+  fill: var(--error-color);
+}
 .sc-calls {
   width: 100%;
   border-collapse: collapse;
