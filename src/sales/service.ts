@@ -353,4 +353,37 @@ export class SalesService {
   async listPips(): Promise<Pip[]> {
     return this.store.listPips();
   }
+
+  /**
+   * Generate a coaching plan for every rep that has weekly data. Used to
+   * fully populate a demo (metrics + coaching in one action). Resilient:
+   * a failure for one rep doesn't abort the rest.
+   */
+  async generateCoachingForAll(): Promise<{ coached: number; failed: number }> {
+    const reps = await this.store.listReps();
+    let coached = 0;
+    let failed = 0;
+    for (const rep of reps) {
+      const weeks = await this.store.getWeeks(rep.id);
+      if (weeks.length === 0) continue;
+      try {
+        await this.generateCoaching(rep.id);
+        coached++;
+      } catch (err) {
+        failed++;
+        console.error(`[sales] coaching failed for ${rep.name}:`, err instanceof Error ? err.message : err);
+      }
+    }
+    return { coached, failed };
+  }
+
+  /**
+   * One-shot demo populate: sync recent weeks from the (mock) CRM and
+   * generate a coaching plan for every rep so the whole flow is testable.
+   */
+  async seedDemo(count = 6): Promise<SyncResult & { coached: number; failed: number }> {
+    const sync = await this.sync(count);
+    const coaching = await this.generateCoachingForAll();
+    return { ...sync, ...coaching };
+  }
 }

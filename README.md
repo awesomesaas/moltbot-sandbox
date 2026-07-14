@@ -389,7 +389,16 @@ npm run deploy
 ```
 
 Open the Control UI at `/_admin/`, select the **Sales Coaching** tab, and click
-**Sync from CRM** to pull the last several weeks of data.
+**Load demo data**. This syncs the mock CRM and generates a coaching plan for
+every rep in one step, so you can immediately review the coaching and PIP output
+without wiring up a real CRM. (Use **Sync from CRM** instead to pull data without
+auto-generating coaching.)
+
+The demo roster covers a range of situations so you can test the coaching engine
+across every metric: a consistently healthy rep, one recently slipping, a
+chronic under-performer (auto-flagged for a PIP), a ramping new hire, plus
+single-issue archetypes — a pipeline drought, a discounter (thin margins), a
+low-activity rep, and a leaky funnel (low close rate).
 
 ### Per-rep quotas and automatic sync
 

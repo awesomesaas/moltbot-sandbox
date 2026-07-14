@@ -6,7 +6,16 @@ describe('MockCrmAdapter', () => {
 
   it('lists a stable set of reps', async () => {
     const reps = await new MockCrmAdapter(ref).listReps();
-    expect(reps.map((r) => r.crmId)).toEqual(['crm-ava', 'crm-ben', 'crm-carla', 'crm-dan']);
+    expect(reps.map((r) => r.crmId)).toEqual([
+      'crm-ava',
+      'crm-ben',
+      'crm-carla',
+      'crm-dan',
+      'crm-erin',
+      'crm-frank',
+      'crm-gina',
+      'crm-henry',
+    ]);
   });
 
   it('is deterministic for the same rep + week', async () => {

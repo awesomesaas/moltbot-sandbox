@@ -24,10 +24,19 @@ describe('SalesService.sync', () => {
     const result = await svc.sync(6);
 
     expect(result.weeksSynced).toHaveLength(6);
-    expect(result.repsUpdated).toBe(4);
+    expect(result.repsUpdated).toBe(8);
 
     const reps = await store.listReps();
-    expect(reps.map((r) => r.name).sort()).toEqual(['Ava Chen', 'Ben Ortiz', 'Carla Diaz', 'Dan Kim']);
+    expect(reps.map((r) => r.name).sort()).toEqual([
+      'Ava Chen',
+      'Ben Ortiz',
+      'Carla Diaz',
+      'Dan Kim',
+      'Erin Walsh',
+      'Frank Boyle',
+      'Gina Reyes',
+      'Henry Cole',
+    ]);
 
     const carla = reps.find((r) => r.name === 'Carla Diaz')!;
     const weeks = await store.getWeeks(carla.id);
@@ -77,7 +86,7 @@ describe('SalesService.sync', () => {
     const { svc, store } = makeService();
     await svc.sync(6);
     await svc.sync(6);
-    expect((await store.listReps())).toHaveLength(4);
+    expect((await store.listReps())).toHaveLength(8);
     const overview = await svc.getOverview();
     const carla = overview.find((r) => r.rep.name === 'Carla Diaz')!;
     const carlaPips = await store.listPips(carla.rep.id);
@@ -129,7 +138,7 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(dash!.latestEvaluation!.health).not.toBe('healthy')
 
     // crmId is preserved so re-sync still matches (no duplicate reps).
-    expect((await store.listReps())).toHaveLength(4)
+    expect((await store.listReps())).toHaveLength(8)
   })
 
   it('supports manually creating a rep', async () => {
@@ -138,5 +147,26 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(rep.id).toBeTruthy();
     const overview = await svc.getOverview();
     expect(overview.some((r) => r.rep.name === 'New Rep')).toBe(true);
+  });
+
+  it('single-metric archetypes surface the expected coaching focus', async () => {
+    const { svc } = makeService();
+    await svc.sync(6);
+    const overview = await svc.getOverview();
+    const focusOf = (name: string) => overview.find((r) => r.rep.name === name)!.topFocus;
+    expect(focusOf('Erin Walsh')).toBe('pipelineCoverage');
+    expect(focusOf('Frank Boyle')).toBe('profitMargin');
+    expect(focusOf('Henry Cole')).toBe('closeRate');
+  });
+
+  it('seedDemo populates weeks and coaching for every rep', async () => {
+    const { svc, store } = makeService();
+    const result = await svc.seedDemo(6);
+    expect(result.repsUpdated).toBe(8);
+    expect(result.coached).toBe(8);
+    expect(result.failed).toBe(0);
+    for (const rep of await store.listReps()) {
+      expect(await store.getLatestCoachingPlan(rep.id)).not.toBeNull();
+    }
   });
 });

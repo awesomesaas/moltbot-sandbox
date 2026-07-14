@@ -92,6 +92,18 @@ export function syncCrm(weeks?: number): Promise<SyncResult> {
   })
 }
 
+export interface SeedResult extends SyncResult {
+  coached: number
+  failed: number
+}
+
+export function seedDemo(weeks?: number): Promise<SeedResult> {
+  return apiRequest<SeedResult>('/seed', {
+    method: 'POST',
+    body: JSON.stringify(weeks ? { weeks } : {}),
+  })
+}
+
 export function generateCoaching(repId: string, weekOf?: string): Promise<{ plan: CoachingPlan }> {
   return apiRequest<{ plan: CoachingPlan }>(`/reps/${repId}/coaching`, {
     method: 'POST',

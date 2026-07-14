@@ -9,6 +9,13 @@
  *   - Ben:   recently slipping (last ~2 weeks)
  *   - Carla: chronically at risk (PIP candidate)
  *   - Dan:   ramping new hire, improving toward healthy
+ *   - Erin:  pipeline drought (only coverage is low)
+ *   - Frank: discounter (hits quota but thin margins)
+ *   - Gina:  low activity (few proposals, thin pipeline)
+ *   - Henry: leaky funnel (lots of activity, low close rate)
+ *
+ * The single-metric archetypes exist so the coaching engine can be tested
+ * producing focused, varied activities for each metric in isolation.
  */
 
 import type { WeeklyMetrics } from '../types';
@@ -104,6 +111,70 @@ const PROFILES: MockProfile[] = [
         contractsWon: Math.max(0, Math.round(2 * ramp + n('cw'))),
       };
     },
+  },
+  {
+    crmId: 'crm-erin',
+    name: 'Erin Walsh',
+    email: 'erin@example.com',
+    startDate: '2022-11-07',
+    // Pipeline drought: everything healthy except coverage (~2x vs 3x target).
+    build: (_weeksAgo, n) => ({
+      quotaTarget: 20000,
+      bookings: Math.round(21000 + 1500 * n('bk')),
+      pipelineValue: Math.round(40000 + 3000 * n('pl')),
+      closeRate: clamp(0.28 + 0.02 * n('cr'), 0.05, 0.5),
+      proposalsSent: Math.max(0, Math.round(5 + n('ps'))),
+      avgProfitMargin: clamp(0.31 + 0.02 * n('pm'), 0.05, 0.5),
+      contractsWon: Math.max(0, Math.round(3 + n('cw'))),
+    }),
+  },
+  {
+    crmId: 'crm-frank',
+    name: 'Frank Boyle',
+    email: 'frank@example.com',
+    startDate: '2023-03-06',
+    // Discounter: hits quota with healthy activity but margins are thin.
+    build: (_weeksAgo, n) => ({
+      quotaTarget: 20000,
+      bookings: Math.round(20500 + 1500 * n('bk')),
+      pipelineValue: Math.round(65000 + 4000 * n('pl')),
+      closeRate: clamp(0.26 + 0.02 * n('cr'), 0.05, 0.5),
+      proposalsSent: Math.max(0, Math.round(5 + n('ps'))),
+      avgProfitMargin: clamp(0.16 + 0.02 * n('pm'), 0.05, 0.5),
+      contractsWon: Math.max(0, Math.round(3 + n('cw'))),
+    }),
+  },
+  {
+    crmId: 'crm-gina',
+    name: 'Gina Reyes',
+    email: 'gina@example.com',
+    startDate: '2023-08-07',
+    // Low activity: few proposals and a thin pipeline drag the number down.
+    build: (_weeksAgo, n) => ({
+      quotaTarget: 20000,
+      bookings: Math.round(17000 + 1500 * n('bk')),
+      pipelineValue: Math.round(44000 + 3000 * n('pl')),
+      closeRate: clamp(0.26 + 0.02 * n('cr'), 0.05, 0.5),
+      proposalsSent: Math.max(0, Math.round(2 + n('ps'))),
+      avgProfitMargin: clamp(0.27 + 0.02 * n('pm'), 0.05, 0.5),
+      contractsWon: Math.max(0, Math.round(1 + n('cw'))),
+    }),
+  },
+  {
+    crmId: 'crm-henry',
+    name: 'Henry Cole',
+    email: 'henry@example.com',
+    startDate: '2022-06-06',
+    // Leaky funnel: strong pipeline and proposal volume, weak close rate.
+    build: (_weeksAgo, n) => ({
+      quotaTarget: 20000,
+      bookings: Math.round(16000 + 1500 * n('bk')),
+      pipelineValue: Math.round(70000 + 5000 * n('pl')),
+      closeRate: clamp(0.12 + 0.02 * n('cr'), 0.03, 0.5),
+      proposalsSent: Math.max(0, Math.round(6 + n('ps'))),
+      avgProfitMargin: clamp(0.28 + 0.02 * n('pm'), 0.05, 0.5),
+      contractsWon: Math.max(0, Math.round(2 + n('cw'))),
+    }),
   },
 ];
 

@@ -101,6 +101,20 @@ sales.post('/sync', async (c) => {
   }
 });
 
+// POST /api/sales/seed - populate demo data: sync + generate coaching for all reps.
+sales.post('/seed', async (c) => {
+  const svc = await getService(c);
+  if (!svc) return c.json(NOT_CONFIGURED, 503);
+  const body = await c.req.json().catch(() => ({}));
+  const weeks = Number(body?.weeks);
+  const count = Number.isFinite(weeks) && weeks > 0 ? Math.min(52, Math.round(weeks)) : 6;
+  try {
+    return c.json(await svc.seedDemo(count));
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Seed failed' }, 500);
+  }
+});
+
 // GET /api/sales/reps/:id - full dashboard for one rep.
 sales.get('/reps/:id', async (c) => {
   const svc = await getService(c);

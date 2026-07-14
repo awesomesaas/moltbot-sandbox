@@ -11,6 +11,7 @@ import {
   METRIC_LABEL,
   openPip,
   refreshPip,
+  seedDemo,
   syncCrm,
   type HealthStatus,
   type MetricStatus,
@@ -120,6 +121,24 @@ export default function SalesPage() {
       setError(`Synced: ${bits.join(', ')}.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const runSeed = async () => {
+    setBusy('seed')
+    setError(null)
+    try {
+      const result = await seedDemo()
+      await loadOverview()
+      if (selectedId) await loadDashboard(selectedId)
+      setError(
+        `Demo data loaded: ${result.repsUpdated} reps, ${result.weeksSynced.length} weeks, ` +
+          `${result.coached} coaching plan(s)${result.pipsOpened ? `, ${result.pipsOpened} PIP(s) opened` : ''}.`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load demo data')
     } finally {
       setBusy(null)
     }
@@ -252,8 +271,11 @@ export default function SalesPage() {
           <button className="sc-btn-secondary" onClick={addRep} disabled={!!busy}>
             Add rep
           </button>
-          <button className="sc-btn-primary" onClick={runSync} disabled={!!busy}>
+          <button className="sc-btn-secondary" onClick={runSync} disabled={!!busy}>
             {busy === 'sync' ? <Spinner /> : null} Sync from CRM
+          </button>
+          <button className="sc-btn-primary" onClick={runSeed} disabled={!!busy}>
+            {busy === 'seed' ? <Spinner /> : null} Load demo data
           </button>
         </div>
       </div>
@@ -262,7 +284,8 @@ export default function SalesPage() {
 
       {reps.length === 0 ? (
         <div className="sc-empty">
-          No reps yet. Click <strong>Sync from CRM</strong> to pull the latest weekly figures.
+          No reps yet. Click <strong>Load demo data</strong> to populate a sample roster with weekly figures and
+          coaching plans, or <strong>Sync from CRM</strong> to pull real figures.
         </div>
       ) : (
         <table className="sc-table">
