@@ -85,6 +85,8 @@ export class SalesService {
     const existing = await this.store.listReps();
     const byCrmId = new Map(existing.filter((r) => r.crmId).map((r) => [r.crmId as string, r]));
     const repIdByCrmId = new Map<string, string>();
+    // Owner-set weekly quota per rep, used to override the CRM's reported target.
+    const quotaByRepId = new Map<string, number | undefined>();
 
     let repsUpdated = 0;
     for (const cr of crmReps) {
@@ -99,6 +101,7 @@ export class SalesService {
         };
         await this.store.upsertRep(updated);
         repIdByCrmId.set(cr.crmId, found.id);
+        quotaByRepId.set(found.id, found.weeklyQuota);
       } else {
         const rep: Rep = {
           id: this.deps.uuid(),
@@ -112,6 +115,7 @@ export class SalesService {
         };
         await this.store.upsertRep(rep);
         repIdByCrmId.set(cr.crmId, rep.id);
+        quotaByRepId.set(rep.id, rep.weeklyQuota);
       }
       repsUpdated++;
     }
@@ -126,10 +130,14 @@ export class SalesService {
       for (const row of rows) {
         const repId = repIdByCrmId.get(row.crmId);
         if (!repId) continue;
+        // Owner-set quota overrides the CRM's reported target for this rep.
+        const quota = quotaByRepId.get(repId);
+        const metrics =
+          quota != null && quota > 0 ? { ...row.metrics, quotaTarget: quota } : row.metrics;
         await this.store.saveWeek({
           repId,
           weekOf,
-          metrics: row.metrics,
+          metrics,
           source: adapter.name,
           ingestedAt: this.nowIso(),
         });
@@ -334,6 +342,7 @@ export class SalesService {
       email: input.email,
       crmId: input.crmId,
       startDate: input.startDate,
+      weeklyQuota: input.weeklyQuota,
       active: input.active ?? true,
       createdAt: now,
       updatedAt: now,

@@ -111,6 +111,27 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(second.id).toBe(first.id);
   });
 
+  it('applies an owner-set weekly quota, overriding the CRM target', async () => {
+    const { svc, store } = makeService()
+    await svc.sync(6)
+    const ava = (await store.listReps()).find((r) => r.name === 'Ava Chen')!
+
+    // Ava is healthy against the default quota; raise it so she misses.
+    await svc.saveRep({ id: ava.id, name: ava.name, weeklyQuota: 45000 })
+    await svc.sync(6)
+
+    const weeks = await store.getWeeks(ava.id)
+    expect(weeks[weeks.length - 1].metrics.quotaTarget).toBe(45000)
+
+    const dash = await svc.getRepDashboard(ava.id)
+    const attainment = dash!.latestEvaluation!.metrics.find((m) => m.key === 'quotaAttainment')!
+    expect(attainment.value).toBeLessThan(0.9)
+    expect(dash!.latestEvaluation!.health).not.toBe('healthy')
+
+    // crmId is preserved so re-sync still matches (no duplicate reps).
+    expect((await store.listReps())).toHaveLength(4)
+  })
+
   it('supports manually creating a rep', async () => {
     const { svc } = makeService();
     const rep = await svc.saveRep({ name: 'New Rep', email: 'new@example.com' });

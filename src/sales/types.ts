@@ -33,6 +33,11 @@ export interface Rep {
   crmId?: string;
   /** ISO date (YYYY-MM-DD) the rep started; used for ramp context. */
   startDate?: string;
+  /**
+   * Owner-set weekly quota ($). When present it overrides whatever the CRM
+   * reports, so attainment and pipeline coverage reflect the owner's target.
+   */
+  weeklyQuota?: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;

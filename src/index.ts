@@ -28,6 +28,7 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp, sales } from './routes';
+import { D1SalesStore, SalesService, resolveConfig } from './sales';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
@@ -418,15 +419,48 @@ app.all('*', async (c) => {
   });
 });
 
+/** Cron schedule (UTC) that triggers the weekly Sales Coaching CRM sync. */
+const WEEKLY_SALES_CRON = '0 13 * * 1'; // Mondays 13:00 UTC
+
+/**
+ * Pull the latest weeks from the CRM and reconcile PIPs for all reps.
+ * No-op when the Sales Coaching module isn't configured (no SALES_DB).
+ */
+async function runSalesSync(env: MoltbotEnv): Promise<void> {
+  if (!env.SALES_DB) {
+    console.log('[cron] Sales sync skipped: SALES_DB not configured');
+    return;
+  }
+  try {
+    const store = new D1SalesStore(env.SALES_DB);
+    await store.init();
+    const service = new SalesService(store, env, resolveConfig(env));
+    const result = await service.sync();
+    console.log(
+      `[cron] Sales sync complete: ${result.repsUpdated} reps, ${result.weeksSynced.length} weeks, ` +
+        `${result.pipsOpened} PIP(s) opened, ${result.pipsResolved} resolved`,
+    );
+  } catch (err) {
+    console.error('[cron] Sales sync failed:', err instanceof Error ? err.message : err);
+  }
+}
+
 /**
  * Scheduled handler for cron triggers.
- * Syncs moltbot config/state from container to R2 for persistence.
+ * - Weekly trigger: sync Sales Coaching data from the CRM.
+ * - Otherwise (every 5 min): back up moltbot config/state to R2.
  */
 async function scheduled(
-  _event: ScheduledEvent,
+  event: ScheduledEvent,
   env: MoltbotEnv,
   _ctx: ExecutionContext
 ): Promise<void> {
+  if (event.cron === WEEKLY_SALES_CRON) {
+    console.log('[cron] Starting weekly Sales Coaching sync...');
+    await runSalesSync(env);
+    return;
+  }
+
   const options = buildSandboxOptions(env);
   const sandbox = getSandbox(env.Sandbox, 'moltbot', options);
 

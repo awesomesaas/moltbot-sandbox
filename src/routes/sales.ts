@@ -72,6 +72,7 @@ sales.post('/reps', async (c) => {
   if (!body || typeof body.name !== 'string' || !body.name.trim()) {
     return c.json({ error: 'name is required' }, 400);
   }
+  const quota = Number(body.weeklyQuota);
   const rep = await svc.saveRep({
     id: typeof body.id === 'string' ? body.id : undefined,
     name: body.name.trim(),
@@ -79,6 +80,8 @@ sales.post('/reps', async (c) => {
     crmId: typeof body.crmId === 'string' ? body.crmId : undefined,
     startDate: typeof body.startDate === 'string' ? body.startDate : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
+    // Only set when a valid number is provided so omitting it preserves the current value.
+    ...(body.weeklyQuota !== undefined && Number.isFinite(quota) ? { weeklyQuota: quota } : {}),
   });
   return c.json({ rep });
 });

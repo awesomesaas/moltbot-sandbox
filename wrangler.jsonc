@@ -75,9 +75,11 @@
   //     "database_id": "REPLACE_WITH_D1_DATABASE_ID",
   //   },
   // ],
-  // Cron trigger to sync moltbot data to R2 every 5 minutes
+  // Cron triggers:
+  // - every 5 minutes: back up moltbot data to R2
+  // - Mondays 13:00 UTC: sync the Sales Coaching module from the CRM (no-op unless SALES_DB is set)
   "triggers": {
-    "crons": ["*/5 * * * *"],
+    "crons": ["*/5 * * * *", "0 13 * * 1"],
   },
   // Browser Rendering binding for CDP shim
   "browser": {

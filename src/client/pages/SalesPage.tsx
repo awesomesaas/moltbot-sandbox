@@ -165,6 +165,29 @@ export default function SalesPage() {
     }
   }
 
+  const setQuota = async () => {
+    if (!dashboard) return
+    const current = dashboard.rep.weeklyQuota ? String(dashboard.rep.weeklyQuota) : ''
+    const input = window.prompt(`Weekly quota ($) for ${dashboard.rep.name}:`, current)
+    if (input === null) return
+    const value = Number(input)
+    if (!Number.isFinite(value) || value < 0) {
+      setError('Quota must be a non-negative number')
+      return
+    }
+    setBusy('quota')
+    try {
+      await createRep({ id: dashboard.rep.id, name: dashboard.rep.name, weeklyQuota: value })
+      await syncCrm() // re-apply the new quota to recent weeks
+      await loadDashboard(dashboard.rep.id)
+      await loadOverview()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set quota')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const addRep = async () => {
     const name = window.prompt('New rep name?')
     if (!name || !name.trim()) return
@@ -297,6 +320,7 @@ export default function SalesPage() {
               onCoaching={runCoaching}
               onOpenPip={runOpenPip}
               onRefreshPip={runRefreshPip}
+              onSetQuota={setQuota}
               showPipDoc={showPipDoc}
               onTogglePipDoc={() => setShowPipDoc((v) => !v)}
               onClose={() => setSelectedId(null)}
@@ -314,6 +338,7 @@ function RepDetail({
   onCoaching,
   onOpenPip,
   onRefreshPip,
+  onSetQuota,
   showPipDoc,
   onTogglePipDoc,
   onClose,
@@ -323,11 +348,15 @@ function RepDetail({
   onCoaching: () => void
   onOpenPip: () => void
   onRefreshPip: (pipId: string) => void
+  onSetQuota: () => void
   showPipDoc: boolean
   onTogglePipDoc: () => void
   onClose: () => void
 }) {
   const { rep, latestEvaluation, activePip, latestCoaching, pipStatus } = dashboard
+  const quotaLabel = rep.weeklyQuota
+    ? `$${rep.weeklyQuota.toLocaleString()}/wk quota`
+    : 'quota from CRM'
 
   return (
     <div className="sc-detail-inner">
@@ -335,7 +364,10 @@ function RepDetail({
         <div>
           <h2>{rep.name}</h2>
           <div className="sc-muted">
-            {latestEvaluation ? `Week of ${latestEvaluation.weekOf}` : 'No data'} · <PipBadge status={pipStatus} />
+            {latestEvaluation ? `Week of ${latestEvaluation.weekOf}` : 'No data'} · <PipBadge status={pipStatus} />{' '}
+            · <button className="sc-link" onClick={onSetQuota} disabled={!!busy}>
+              {busy === 'quota' ? <Spinner /> : null} {quotaLabel}
+            </button>
           </div>
         </div>
         <button className="sc-btn-ghost" onClick={onClose}>

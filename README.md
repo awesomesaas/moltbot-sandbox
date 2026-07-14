@@ -391,6 +391,16 @@ npm run deploy
 Open the Control UI at `/_admin/`, select the **Sales Coaching** tab, and click
 **Sync from CRM** to pull the last several weeks of data.
 
+### Per-rep quotas and automatic sync
+
+- **Weekly quota per rep** — click a rep, then the quota link in the header to
+  set their weekly quota ($). This overrides whatever the CRM reports, so quota
+  attainment and pipeline coverage reflect your target. Leaving it unset uses
+  the CRM's value (or `SALES_DEFAULT_WEEKLY_QUOTA` for the HubSpot adapter).
+- **Automatic weekly sync** — a cron trigger (`Mondays 13:00 UTC`) syncs the CRM
+  and reconciles PIPs automatically, so the dashboard stays current without
+  anyone clicking **Sync**. It's a no-op until `SALES_DB` is configured.
+
 ### Connecting a real CRM
 
 Set `SALES_CRM_PROVIDER=hubspot` and provide a HubSpot private-app token:
