@@ -80,8 +80,9 @@ sales.post('/reps', async (c) => {
     crmId: typeof body.crmId === 'string' ? body.crmId : undefined,
     startDate: typeof body.startDate === 'string' ? body.startDate : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
-    // Only set when a valid number is provided so omitting it preserves the current value.
+    // Only set when provided so omitting a field preserves the current value.
     ...(body.weeklyQuota !== undefined && Number.isFinite(quota) ? { weeklyQuota: quota } : {}),
+    ...(typeof body.notes === 'string' ? { notes: body.notes } : {}),
   });
   return c.json({ rep });
 });

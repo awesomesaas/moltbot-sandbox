@@ -57,6 +57,27 @@ describe('rule-based coaching', () => {
     expect(plan.source).toBe('rules');
     expect(plan.focusAreas).toContain('quotaAttainment');
   });
+
+  it('surfaces a behavioral play from owner notes, even on a healthy rep', () => {
+    const e = evaluateWeek('r1', '2026-07-13', healthy, DEFAULT_THRESHOLDS);
+    const activities = buildRuleBasedActivities(e, 'talks too much on calls, does not listen');
+    expect(activities.some((a) => a.title === 'Talk less, diagnose more')).toBe(true);
+    // A noted challenge replaces the generic "all good" reinforcement.
+    expect(activities.some((a) => a.metric === 'general')).toBe(false);
+  });
+
+  it('flows rep.notes into the rule-based plan', () => {
+    const e = evaluateWeek('r1', '2026-07-13', healthy, DEFAULT_THRESHOLDS);
+    const noted = { ...rep, notes: 'not reaching decision makers' };
+    const plan = buildRuleBasedPlan(noted, e, '2026-07-13T00:00:00Z');
+    expect(plan.activities.some((a) => a.title === 'Get to the decision-maker')).toBe(true);
+  });
+
+  it('caps the number of activities', () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    const activities = buildRuleBasedActivities(e, 'talks too much; not reaching decision makers; trial not continuing');
+    expect(activities.length).toBeLessThanOrEqual(6);
+  });
 });
 
 describe('generateCoachingPlan', () => {

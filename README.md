@@ -352,6 +352,17 @@ week-over-week trend, rolling up to an overall health score and a `healthy` /
   Gateway) is configured, activities are written by Claude (`claude-opus-4-8` by
   default); otherwise a deterministic rule-based plan is used. Coaching never
   fails — it always returns a usable plan.
+- **Coaching playbook** — both paths draw on a library of concrete sales-coaching
+  plays (`src/sales/playbook.ts`) covering situations the raw numbers show (quota
+  gaps, thin pipeline, low close rate, few proposals, thin margins) *and*
+  behavioral ones they don't: prospects stalling before discovery/proposal
+  calls, trials that don't convert, not reaching decision-makers, and reps who
+  talk too much and miss buying signals.
+- **Observed challenges** — because those behavioral issues aren't in the
+  metrics, each rep has an optional free-text notes field (edit it from the rep
+  detail view). The coach matches your note to the right play and prioritizes it,
+  and it's included in the prompt to Claude. The demo reps come pre-seeded with
+  example observations so you can see this immediately.
 - **PIPs** — after a rep is at risk for `SALES_PIP_AFTER_WEEKS` (default 3)
   consecutive weeks, a PIP is opened automatically on the next sync: measurable
   milestones are created and a full PIP document is generated (Claude when

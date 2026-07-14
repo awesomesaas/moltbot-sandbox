@@ -207,6 +207,25 @@ export default function SalesPage() {
     }
   }
 
+  const setNotes = async () => {
+    if (!dashboard) return
+    const current = dashboard.rep.notes ?? ''
+    const input = window.prompt(
+      `Observed challenges for ${dashboard.rep.name}\n(e.g. "talks too much on calls", "not reaching decision-makers" — used to target coaching):`,
+      current,
+    )
+    if (input === null) return
+    setBusy('notes')
+    try {
+      await createRep({ id: dashboard.rep.id, name: dashboard.rep.name, notes: input })
+      await loadDashboard(dashboard.rep.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save notes')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const addRep = async () => {
     const name = window.prompt('New rep name?')
     if (!name || !name.trim()) return
@@ -344,6 +363,7 @@ export default function SalesPage() {
               onOpenPip={runOpenPip}
               onRefreshPip={runRefreshPip}
               onSetQuota={setQuota}
+              onSetNotes={setNotes}
               showPipDoc={showPipDoc}
               onTogglePipDoc={() => setShowPipDoc((v) => !v)}
               onClose={() => setSelectedId(null)}
@@ -362,6 +382,7 @@ function RepDetail({
   onOpenPip,
   onRefreshPip,
   onSetQuota,
+  onSetNotes,
   showPipDoc,
   onTogglePipDoc,
   onClose,
@@ -372,6 +393,7 @@ function RepDetail({
   onOpenPip: () => void
   onRefreshPip: (pipId: string) => void
   onSetQuota: () => void
+  onSetNotes: () => void
   showPipDoc: boolean
   onTogglePipDoc: () => void
   onClose: () => void
@@ -417,6 +439,24 @@ function RepDetail({
           ))}
         </div>
       )}
+
+      {/* Observed challenges (owner notes that steer coaching) */}
+      <section className="sc-section">
+        <div className="sc-section-head">
+          <h3>Observed challenges</h3>
+          <button className="sc-btn-secondary" onClick={onSetNotes} disabled={!!busy}>
+            {busy === 'notes' ? <Spinner /> : null} {rep.notes ? 'Edit' : 'Add'}
+          </button>
+        </div>
+        {rep.notes ? (
+          <p className="sc-notes">{rep.notes}</p>
+        ) : (
+          <p className="sc-muted">
+            No notes yet. Add a behavioral observation (e.g. &quot;talks too much on calls&quot;) and it will be
+            factored into the coaching plan — useful for issues the metrics can&apos;t reveal.
+          </p>
+        )}
+      </section>
 
       {/* Coaching */}
       <section className="sc-section">

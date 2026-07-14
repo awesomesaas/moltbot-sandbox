@@ -63,6 +63,7 @@ const PROFILES: MockProfile[] = [
     name: 'Ben Ortiz',
     email: 'ben@example.com',
     startDate: '2022-09-05',
+    notes: "Trial projects aren't converting to ongoing work — clients like the pilot but don't continue.",
     // Healthy until ~2 weeks ago, then a sharp, sustained drop.
     build: (weeksAgo, n) => {
       const slipping = weeksAgo <= 1;
@@ -117,6 +118,7 @@ const PROFILES: MockProfile[] = [
     name: 'Erin Walsh',
     email: 'erin@example.com',
     startDate: '2022-11-07',
+    notes: 'Prospects stall before booking the discovery or proposal-review call; deals lose momentum between meetings.',
     // Pipeline drought: everything healthy except coverage (~2x vs 3x target).
     build: (_weeksAgo, n) => ({
       quotaTarget: 20000,
@@ -149,6 +151,7 @@ const PROFILES: MockProfile[] = [
     name: 'Gina Reyes',
     email: 'gina@example.com',
     startDate: '2023-08-07',
+    notes: 'Struggles to reach decision-makers in prospecting; stays stuck with low-level contacts who lack authority.',
     // Low activity: few proposals and a thin pipeline drag the number down.
     build: (_weeksAgo, n) => ({
       quotaTarget: 20000,
@@ -165,6 +168,7 @@ const PROFILES: MockProfile[] = [
     name: 'Henry Cole',
     email: 'henry@example.com',
     startDate: '2022-06-06',
+    notes: 'Talks too much on calls and does not read prospect feedback; discovery calls run long and one-sided.',
     // Leaky funnel: strong pipeline and proposal volume, weak close rate.
     build: (_weeksAgo, n) => ({
       quotaTarget: 20000,
@@ -187,7 +191,13 @@ export class MockCrmAdapter implements CrmAdapter {
   }
 
   async listReps(): Promise<CrmRep[]> {
-    return PROFILES.map(({ crmId, name, email, startDate }) => ({ crmId, name, email, startDate }));
+    return PROFILES.map(({ crmId, name, email, startDate, notes }) => ({
+      crmId,
+      name,
+      email,
+      startDate,
+      notes,
+    }));
   }
 
   async fetchWeek(weekOf: string): Promise<CrmRepMetrics[]> {

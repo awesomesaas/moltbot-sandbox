@@ -132,6 +132,7 @@ export const SCHEMA_STATEMENTS: string[] = [
      crm_id TEXT,
      start_date TEXT,
      weekly_quota REAL,
+     notes TEXT,
      active INTEGER NOT NULL DEFAULT 1,
      created_at TEXT NOT NULL,
      updated_at TEXT NOT NULL
@@ -168,6 +169,7 @@ interface RepRow {
   crm_id: string | null;
   start_date: string | null;
   weekly_quota: number | null;
+  notes: string | null;
   active: number;
   created_at: string;
   updated_at: string;
@@ -181,6 +183,7 @@ function rowToRep(r: RepRow): Rep {
     crmId: r.crm_id ?? undefined,
     startDate: r.start_date ?? undefined,
     weeklyQuota: r.weekly_quota ?? undefined,
+    notes: r.notes ?? undefined,
     active: r.active === 1,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -190,6 +193,7 @@ function rowToRep(r: RepRow): Rep {
 /** Columns added after the initial schema shipped, applied idempotently. */
 const COLUMN_MIGRATIONS: Array<{ table: string; column: string; ddl: string }> = [
   { table: 'sales_reps', column: 'weekly_quota', ddl: 'ALTER TABLE sales_reps ADD COLUMN weekly_quota REAL' },
+  { table: 'sales_reps', column: 'notes', ddl: 'ALTER TABLE sales_reps ADD COLUMN notes TEXT' },
 ];
 
 export class D1SalesStore implements SalesStore {
@@ -226,14 +230,15 @@ export class D1SalesStore implements SalesStore {
   async upsertRep(rep: Rep): Promise<Rep> {
     await this.db
       .prepare(
-        `INSERT INTO sales_reps (id, name, email, crm_id, start_date, weekly_quota, active, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO sales_reps (id, name, email, crm_id, start_date, weekly_quota, notes, active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name,
            email = excluded.email,
            crm_id = excluded.crm_id,
            start_date = excluded.start_date,
            weekly_quota = excluded.weekly_quota,
+           notes = excluded.notes,
            active = excluded.active,
            updated_at = excluded.updated_at`,
       )
@@ -244,6 +249,7 @@ export class D1SalesStore implements SalesStore {
         rep.crmId ?? null,
         rep.startDate ?? null,
         rep.weeklyQuota ?? null,
+        rep.notes ?? null,
         rep.active ? 1 : 0,
         rep.createdAt,
         rep.updatedAt,

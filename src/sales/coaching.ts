@@ -18,45 +18,10 @@ import type { SalesConfig } from './config';
 import { METRIC_META } from './config';
 import { formatDelta, formatMetricValue } from './format';
 import { callAnthropic, extractJson, hasAnthropic, type AnthropicEnv } from './anthropic';
+import { PLAYBOOK, matchSituations, primarySituation, situationToActivity } from './playbook';
 
-/** Deterministic activity template per metric, used as the AI fallback. */
-const ACTIVITY_TEMPLATES: Record<MetricKey, Omit<CoachingActivity, 'priority'>> = {
-  quotaAttainment: {
-    metric: 'quotaAttainment',
-    title: 'Deal-by-deal quota review',
-    description:
-      "Sit down 1:1 and walk every open deal expected to close this quarter. For each, confirm the next step, the decision-maker, and the realistic close date. Rebuild the week's number from committed deals.",
-    rationale: 'Bookings are below the weekly quota target — the gap needs a concrete recovery plan.',
-  },
-  pipelineCoverage: {
-    metric: 'pipelineCoverage',
-    title: 'Prospecting block + pipeline gen',
-    description:
-      'Schedule two protected 90-minute prospecting blocks this week and set a target for new qualified opportunities added. Review the rep’s outbound list and messaging together before they start.',
-    rationale: 'Open pipeline has fallen below the coverage target, which starves future quota attainment.',
-  },
-  closeRate: {
-    metric: 'closeRate',
-    title: 'Win/loss deal debrief',
-    description:
-      'Pick the last 3 lost deals and run a structured debrief: where did it stall, who else was in the room, what objection went unhandled? Role-play the objection handling that would have changed the outcome.',
-    rationale: 'Win rate on decided deals is below target — the rep is generating activity but not converting.',
-  },
-  proposalsSent: {
-    metric: 'proposalsSent',
-    title: 'Proposal cadence check',
-    description:
-      'Review which qualified opportunities are ready for a proposal and remove whatever is blocking the rep from sending them. Set a specific proposals-sent goal for the week and check in mid-week.',
-    rationale: 'Proposal volume is below target — too few deals are reaching the commitment stage.',
-  },
-  profitMargin: {
-    metric: 'profitMargin',
-    title: 'Discounting & scoping review',
-    description:
-      'Review the last few closed contracts for discount levels and scope. Coach on value framing and holding price, and agree on a discount ceiling that needs manager sign-off before it is offered.',
-    rationale: 'Average contract margin is below target — deals are being won but at eroding profitability.',
-  },
-};
+/** Max activities in a single rule-based plan. */
+const MAX_ACTIVITIES = 6;
 
 /** Format one metric line for a prompt or summary. */
 function metricLine(m: MetricEvaluation): string {
@@ -77,20 +42,42 @@ export function summarizeEvaluation(evaluation: WeekEvaluation): string {
 }
 
 /**
- * Build deterministic coaching activities from an evaluation. Always
- * returns at least one activity.
+ * Build deterministic coaching activities from an evaluation and (optionally)
+ * the owner's observed challenges. Order of priority:
+ *   1. behavioral situations matched from the owner's notes,
+ *   2. the primary play for each slipping metric (worst first),
+ *   3. the primary play for each watch metric.
+ * Always returns at least one activity.
  */
-export function buildRuleBasedActivities(evaluation: WeekEvaluation): CoachingActivity[] {
-  const slipping = evaluation.slipping;
-  const watch = evaluation.metrics.filter((m) => m.status === 'watch').map((m) => m.key);
-
+export function buildRuleBasedActivities(
+  evaluation: WeekEvaluation,
+  notes?: string,
+): CoachingActivity[] {
   const activities: CoachingActivity[] = [];
-  for (const key of slipping) {
-    activities.push({ ...ACTIVITY_TEMPLATES[key], priority: 'high' });
+  const usedIds = new Set<string>();
+
+  const add = (situationId: string, activity: CoachingActivity): void => {
+    if (usedIds.has(situationId)) return;
+    usedIds.add(situationId);
+    activities.push(activity);
+  };
+
+  // 1. Owner-observed challenges the metrics can't reveal.
+  for (const s of matchSituations(notes)) {
+    add(s.id, situationToActivity(s, 'high'));
   }
-  for (const key of watch) {
-    if (slipping.includes(key)) continue;
-    activities.push({ ...ACTIVITY_TEMPLATES[key], priority: 'medium' });
+
+  // 2. Primary play for each slipping metric, worst first.
+  for (const key of evaluation.slipping) {
+    const s = primarySituation(key);
+    add(s.id, situationToActivity(s, 'high'));
+  }
+
+  // 3. Primary play for each watch metric.
+  for (const m of evaluation.metrics) {
+    if (m.status !== 'watch') continue;
+    const s = primarySituation(m.key);
+    add(s.id, situationToActivity(s, 'medium'));
   }
 
   if (activities.length === 0) {
@@ -103,7 +90,7 @@ export function buildRuleBasedActivities(evaluation: WeekEvaluation): CoachingAc
       priority: 'low',
     });
   }
-  return activities;
+  return activities.slice(0, MAX_ACTIVITIES);
 }
 
 /** Build a rule-based coaching plan (no LLM). */
@@ -117,16 +104,27 @@ export function buildRuleBasedPlan(
     weekOf: evaluation.weekOf,
     summary: summarizeEvaluation(evaluation),
     focusAreas: evaluation.slipping,
-    activities: buildRuleBasedActivities(evaluation),
+    activities: buildRuleBasedActivities(evaluation, rep.notes),
     source: 'rules',
     createdAt: nowIso,
   };
 }
 
+/** Worked examples from the playbook, injected into the system prompt to steer output. */
+const PLAYBOOK_REFERENCE = PLAYBOOK.map(
+  (s) => `- ${s.title} (${s.metric}): ${s.rationale}`,
+).join('\n');
+
 const COACH_SYSTEM = `You are an expert sales manager and coach helping a small-business owner manage individual sales reps week by week.
-You turn a rep's weekly metrics into a short list of specific, high-leverage coaching activities the owner can run THIS week.
-Be concrete and practical: name the activity, describe exactly what to do, and tie it to the metric that slipped.
+You turn a rep's weekly metrics — and the manager's own observations — into a short list of specific, high-leverage coaching activities the owner can run THIS week.
+Be concrete and practical: name the activity, describe exactly what to do, and tie it to the metric or behavior it addresses.
 Do not invent metrics or numbers that are not provided. Keep each activity realistic for a busy owner.
+
+Draw on these common coaching situations when they fit the data or the manager's notes (adapt them, don't copy verbatim):
+${PLAYBOOK_REFERENCE}
+
+If the manager has noted a specific challenge for this rep (e.g. talking too much on calls, not reaching decision-makers, deals stalling before a meeting, trials not converting), prioritize activities that directly address it — these behaviors often won't show up in the metrics alone.
+
 Respond with ONLY a JSON object, no prose, matching this shape:
 {
   "summary": "one or two sentence read on where the rep stands",
@@ -159,11 +157,14 @@ function buildCoachUserPrompt(
     '',
     'This week’s metrics:',
     ...evaluation.metrics.map(metricLine),
+    ...(rep.notes && rep.notes.trim()
+      ? ['', `Manager's observed challenges for this rep: ${rep.notes.trim()}`]
+      : []),
     '',
     'Recent health trend:',
     trend || '  (no prior weeks)',
     '',
-    'Produce 2–4 coaching activities prioritizing the metrics that are slipping.',
+    'Produce 2–4 coaching activities prioritizing the metrics that are slipping and any challenge the manager noted.',
   ].join('\n');
 }
 

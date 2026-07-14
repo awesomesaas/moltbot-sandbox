@@ -38,6 +38,12 @@ export interface Rep {
    * reports, so attainment and pipeline coverage reflect the owner's target.
    */
   weeklyQuota?: number;
+  /**
+   * Free-text observations from the owner about qualitative challenges the
+   * metrics can't reveal (e.g. "talks too much on calls", "not reaching
+   * decision-makers"). Fed into coaching so plays can target the behavior.
+   */
+  notes?: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;

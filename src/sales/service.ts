@@ -109,6 +109,9 @@ export class SalesService {
           email: cr.email,
           crmId: cr.crmId,
           startDate: cr.startDate,
+          // Seed the owner-notes field from the CRM only on first creation;
+          // owner edits afterward are never overwritten by a sync.
+          notes: cr.notes,
           active: true,
           createdAt: this.nowIso(),
           updatedAt: this.nowIso(),
@@ -343,6 +346,7 @@ export class SalesService {
       crmId: input.crmId,
       startDate: input.startDate,
       weeklyQuota: input.weeklyQuota,
+      notes: input.notes,
       active: input.active ?? true,
       createdAt: now,
       updatedAt: now,

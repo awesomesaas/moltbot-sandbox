@@ -22,5 +22,13 @@ export { createCrmAdapter } from './crm/adapter';
 export type { CrmAdapter, CrmRep, CrmRepMetrics } from './crm/adapter';
 export { MockCrmAdapter } from './crm/mock';
 export { HubSpotCrmAdapter, aggregateDealsToMetrics, normalizeHubSpotDeal } from './crm/hubspot';
+export {
+  PLAYBOOK,
+  situationsForMetric,
+  primarySituation,
+  matchSituations,
+  situationToActivity,
+} from './playbook';
+export type { CoachingSituation } from './playbook';
 export { formatMetricValue, formatDelta } from './format';
 export { mondayOf, normalizeWeek, addWeeks, weeksBetween } from './dates';

@@ -159,6 +159,25 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(focusOf('Henry Cole')).toBe('closeRate');
   });
 
+  it('uses seeded owner notes to target behavioral coaching', async () => {
+    const { svc, store } = makeService();
+    await svc.sync(6);
+    const henry = (await store.listReps()).find((r) => r.name === 'Henry Cole')!;
+    expect(henry.notes).toMatch(/talks too much/i);
+    const plan = await svc.generateCoaching(henry.id);
+    expect(plan.activities.some((a) => a.title === 'Talk less, diagnose more')).toBe(true);
+  });
+
+  it('preserves owner notes across re-sync (never overwritten by the CRM)', async () => {
+    const { svc, store } = makeService();
+    await svc.sync(6);
+    const gina = (await store.listReps()).find((r) => r.name === 'Gina Reyes')!;
+    await svc.saveRep({ id: gina.id, name: gina.name, notes: 'custom owner note about discounting' });
+    await svc.sync(6);
+    const after = await store.getRep(gina.id);
+    expect(after?.notes).toBe('custom owner note about discounting');
+  });
+
   it('seedDemo populates weeks and coaching for every rep', async () => {
     const { svc, store } = makeService();
     const result = await svc.seedDemo(6);

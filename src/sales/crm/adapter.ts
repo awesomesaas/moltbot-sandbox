@@ -17,6 +17,12 @@ export interface CrmRep {
   name: string;
   email?: string;
   startDate?: string;
+  /**
+   * Optional owner-facing observation seeded on first import (e.g. from a CRM
+   * note field). Used to seed the rep's coaching notes; never overwrites an
+   * owner's later edits.
+   */
+  notes?: string;
 }
 
 /** One rep's raw metrics for a requested week. */

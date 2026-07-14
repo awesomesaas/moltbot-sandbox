@@ -308,6 +308,14 @@ button:disabled {
 .sc-summary {
   margin-bottom: 0.75rem;
 }
+.sc-notes {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--warning-color);
+  border-radius: var(--border-radius);
+  padding: 0.6rem 0.9rem;
+  font-style: italic;
+}
 
 /* Activities */
 .sc-activities {
