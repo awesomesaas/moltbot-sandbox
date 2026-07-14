@@ -32,11 +32,23 @@ src/
 ├── routes/           # API route handlers
 │   ├── api.ts        # /api/* endpoints (devices, gateway)
 │   ├── admin.ts      # /_admin/* static file serving
+│   ├── sales.ts      # /api/sales/* endpoints (Sales Coaching)
 │   └── debug.ts      # /debug/* endpoints
+├── sales/            # Sales Coaching module (see below)
+│   ├── types.ts      # Domain types
+│   ├── config.ts     # Targets, PIP cadence, env resolution
+│   ├── metrics.ts    # Rules engine (pure)
+│   ├── pip.ts        # PIP state machine (pure)
+│   ├── coaching.ts   # AI + rule-based coaching / PIP docs
+│   ├── anthropic.ts  # Minimal Messages API client (fetch)
+│   ├── store.ts      # SalesStore: D1 + in-memory impls
+│   ├── service.ts    # Orchestration (SalesService)
+│   └── crm/          # CrmAdapter interface + mock/hubspot adapters
 └── client/           # React admin UI (Vite)
-    ├── App.tsx
-    ├── api.ts        # API client
-    └── pages/
+    ├── App.tsx       # Tab nav: Sales Coaching + Admin
+    ├── api.ts        # Admin API client
+    ├── sales-api.ts  # Sales Coaching API client
+    └── pages/        # AdminPage, SalesPage
 ```
 
 ## Key Patterns
@@ -232,6 +244,48 @@ npx wrangler secret list
 ```
 
 Enable debug routes with `DEBUG_ROUTES=true` and check `/debug/processes`.
+
+## Sales Coaching Module
+
+A self-contained feature under `src/sales/` with API routes in
+`src/routes/sales.ts` (mounted at `/api/sales`) and UI in
+`src/client/pages/SalesPage.tsx`. It helps an owner manage reps week by week:
+pull weekly figures → evaluate → coach → escalate to a PIP.
+
+### Design
+
+- **Layered and mostly pure.** `metrics.ts` (rules engine), `pip.ts` (PIP state
+  machine), `dates.ts`, and the rule-based paths in `coaching.ts` are pure
+  functions with no I/O — they hold the bulk of the logic and the tests.
+- **Storage is an interface.** `SalesStore` has a `D1SalesStore` (production)
+  and a `MemorySalesStore` (tests + the store the service tests run against).
+  The D1 schema self-initializes via `CREATE TABLE IF NOT EXISTS` in `init()` —
+  no migration tooling. `SALES_DB` is optional; routes return a clear
+  "not configured" 503 when it's missing.
+- **CRM is an interface.** `CrmAdapter` (`crm/adapter.ts`) with a `MockCrmAdapter`
+  (deterministic sample data, the default) and a `HubSpotCrmAdapter`. Add new
+  CRMs by implementing the interface and extending `createCrmAdapter`.
+- **AI with a fallback.** `coaching.ts` calls Anthropic via `anthropic.ts`
+  (raw `fetch` to `/v1/messages`, honoring the same AI Gateway / direct routing
+  as the container). Every AI path validates output and falls back to the
+  deterministic rule-based version, so the feature works with no API key.
+- **Deterministic in tests.** `SalesService` takes an injectable
+  `{ now, uuid }` (`ServiceDeps`) so time and IDs are fixed under test.
+
+### Config
+
+All tunables live in `src/sales/config.ts` (`resolveConfig(env)`), overridable
+via `SALES_*` env vars documented in the README secrets table. Coaching model
+defaults to `claude-opus-4-8`.
+
+### Testing
+
+Colocated `*.test.ts` cover dates, metrics, PIP, coaching (rules + fallback),
+the mock CRM, the HubSpot aggregator, the memory store, the Anthropic
+client/JSON extraction, and an end-to-end `SalesService` flow (sync →
+auto-PIP → coaching → dashboard) using the mock CRM and in-memory store — no
+network. Add tests alongside new logic; keep new logic in the pure modules
+where possible so it stays cheap to test.
 
 ## R2 Storage Notes
 

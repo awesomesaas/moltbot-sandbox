@@ -28,3 +28,22 @@ MOLTBOT_GATEWAY_TOKEN=dev-token-change-in-prod
 # CDP (Chrome DevTools Protocol) configuration for browser automation
 # CDP_SECRET=shared-secret-for-cdp-auth
 # WORKER_URL=https://your-worker.example.com
+
+# ---------------------------------------------------------------------------
+# Sales Coaching module (optional)
+# Requires a D1 binding named SALES_DB in wrangler.jsonc (see README).
+# The AI coaching uses the same ANTHROPIC_API_KEY / AI_GATEWAY_* above.
+# ---------------------------------------------------------------------------
+# CRM source: mock (default, works out of the box) | hubspot | salesforce
+# SALES_CRM_PROVIDER=mock
+# HUBSPOT_ACCESS_TOKEN=pat-...            # required when SALES_CRM_PROVIDER=hubspot
+# SALES_COACH_MODEL=claude-opus-4-8       # Anthropic model for coaching
+# Targets/thresholds (override the defaults in src/sales/config.ts):
+# SALES_QUOTA_ATTAINMENT_TARGET=0.9
+# SALES_PIPELINE_COVERAGE_TARGET=3
+# SALES_CLOSE_RATE_TARGET=0.2
+# SALES_PROPOSALS_TARGET=4
+# SALES_PROFIT_MARGIN_TARGET=0.25
+# SALES_PIP_AFTER_WEEKS=3                 # consecutive at-risk weeks before a PIP
+# SALES_PIP_DURATION_WEEKS=6
+# SALES_DEFAULT_WEEKLY_QUOTA=20000        # used by the HubSpot adapter

@@ -326,6 +326,87 @@ node /root/clawd/skills/cloudflare-browser/scripts/video.js "https://site1.com,h
 
 See `skills/cloudflare-browser/SKILL.md` for full documentation.
 
+## Sales Coaching
+
+The worker includes a **Sales Coaching** tool for sales managers/owners. It pulls
+each rep's weekly figures from a CRM, evaluates them against targets and trends,
+generates specific coaching activities to run that week, and escalates a rep into
+a Performance Improvement Plan (PIP) — with a generated PIP document and tracked
+milestones — when they miss for too long.
+
+It lives in the same Control UI (served at `/_admin/`, protected by Cloudflare
+Access) under the **Sales Coaching** tab, and its API is at `/api/sales/*`.
+
+### What it tracks
+
+Per rep, per week: **quota attainment** (bookings ÷ quota), **pipeline coverage**
+(open pipeline ÷ quota), **close rate**, **proposals sent**, and **average profit
+margin per contract**. Each metric is scored against a configurable target and its
+week-over-week trend, rolling up to an overall health score and a `healthy` /
+`watch` / `at_risk` status.
+
+### How coaching & PIPs work
+
+- **Coaching** — for each rep the tool detects which metrics slipped and produces
+  2–4 concrete activities for the week. When `ANTHROPIC_API_KEY` (or the AI
+  Gateway) is configured, activities are written by Claude (`claude-opus-4-8` by
+  default); otherwise a deterministic rule-based plan is used. Coaching never
+  fails — it always returns a usable plan.
+- **PIPs** — after a rep is at risk for `SALES_PIP_AFTER_WEEKS` (default 3)
+  consecutive weeks, a PIP is opened automatically on the next sync: measurable
+  milestones are created and a full PIP document is generated (Claude when
+  available, template otherwise). Active PIPs are re-evaluated on each sync and
+  resolve to **passed** (after the required consecutive recovered weeks) or
+  **failed** (when the PIP window elapses without sustained recovery).
+
+### Setup
+
+The module needs a [Cloudflare D1](https://developers.cloudflare.com/d1/)
+database for persistence. It works out of the box with a built-in **mock CRM**
+(a believable sample dataset) so you can try it before connecting a real CRM.
+
+```bash
+# 1. Create the D1 database
+npx wrangler d1 create moltbot-sales
+```
+
+Then uncomment the `d1_databases` block in `wrangler.jsonc` and paste in the
+returned `database_id`:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "SALES_DB",
+    "database_name": "moltbot-sales",
+    "database_id": "<paste the id from the command above>"
+  }
+]
+```
+
+```bash
+# 2. Redeploy (the schema self-initializes on first use)
+npm run deploy
+```
+
+Open the Control UI at `/_admin/`, select the **Sales Coaching** tab, and click
+**Sync from CRM** to pull the last several weeks of data.
+
+### Connecting a real CRM
+
+Set `SALES_CRM_PROVIDER=hubspot` and provide a HubSpot private-app token:
+
+```bash
+npx wrangler secret put HUBSPOT_ACCESS_TOKEN
+# SALES_CRM_PROVIDER can be set as a plain var in wrangler.jsonc or as a secret
+```
+
+HubSpot pipeline stages vary per account; the adapter uses HubSpot's built-in
+`hs_is_closed` / `hs_is_closed_won` flags plus a proposal-stage heuristic. See
+`src/sales/crm/hubspot.ts` to tune it (or add a Salesforce/other adapter — the
+`CrmAdapter` interface in `src/sales/crm/adapter.ts` is the only integration
+point). Targets and thresholds are all configurable via the `SALES_*` variables
+in the secrets table above.
+
 ## Optional: Cloudflare AI Gateway
 
 You can route API requests through [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for caching, rate limiting, analytics, and cost tracking. AI Gateway supports multiple providers — configure your preferred provider in the gateway and use these env vars:
@@ -381,6 +462,17 @@ The `AI_GATEWAY_*` variables take precedence over `ANTHROPIC_*` if both are set.
 | `SLACK_APP_TOKEN` | No | Slack app token |
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
+| `SALES_CRM_PROVIDER` | No | Sales Coaching CRM source: `mock` (default), `hubspot`, or `salesforce` |
+| `HUBSPOT_ACCESS_TOKEN` | No | HubSpot private-app token (required when `SALES_CRM_PROVIDER=hubspot`) |
+| `SALES_COACH_MODEL` | No | Anthropic model for coaching generation (default `claude-opus-4-8`) |
+| `SALES_QUOTA_ATTAINMENT_TARGET` | No | Min weekly quota attainment, e.g. `0.9` (default) |
+| `SALES_PIPELINE_COVERAGE_TARGET` | No | Min pipeline coverage ratio, e.g. `3` (default) |
+| `SALES_CLOSE_RATE_TARGET` | No | Min close rate, e.g. `0.2` (default) |
+| `SALES_PROPOSALS_TARGET` | No | Min proposals sent per week, e.g. `4` (default) |
+| `SALES_PROFIT_MARGIN_TARGET` | No | Min average profit margin, e.g. `0.25` (default) |
+| `SALES_PIP_AFTER_WEEKS` | No | Consecutive at-risk weeks before a PIP is opened (default `3`) |
+| `SALES_PIP_DURATION_WEEKS` | No | PIP length in weeks (default `6`) |
+| `SALES_DEFAULT_WEEKLY_QUOTA` | No | Default weekly quota used by the HubSpot adapter (default `20000`) |
 
 ## Security Considerations
 

@@ -62,6 +62,19 @@
       "bucket_name": "moltbot-data","preview_bucket_name": "moltbot-data",
     },
   ],
+  // D1 database for the Sales Coaching module (optional).
+  // To enable it:
+  //   1. npx wrangler d1 create moltbot-sales
+  //   2. Copy the returned database_id below and uncomment this block
+  //   3. npm run deploy
+  // The schema self-initializes on first use (CREATE TABLE IF NOT EXISTS).
+  // "d1_databases": [
+  //   {
+  //     "binding": "SALES_DB",
+  //     "database_name": "moltbot-sales",
+  //     "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+  //   },
+  // ],
   // Cron trigger to sync moltbot data to R2 every 5 minutes
   "triggers": {
     "crons": ["*/5 * * * *"],
