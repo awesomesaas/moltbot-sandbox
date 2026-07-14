@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   buildRuleBasedActivities,
   buildRuleBasedPlan,
@@ -65,6 +65,109 @@ describe('generateCoachingPlan', () => {
     const plan = await generateCoachingPlan(rep, e, [e], {}, resolveConfig({}), '2026-07-13T00:00:00Z');
     expect(plan.source).toBe('rules');
     expect(plan.activities.length).toBeGreaterThan(0);
+  });
+});
+
+describe('generateCoachingPlan (AI path, mocked Anthropic)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const env = { ANTHROPIC_API_KEY: 'sk-test' };
+  const config = resolveConfig({});
+
+  function stubAnthropicText(text: string) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ type: 'text', text }] }),
+        text: async () => '',
+      })),
+    );
+  }
+
+  it('parses a valid AI response into an ai-sourced plan', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    stubAnthropicText(
+      JSON.stringify({
+        summary: 'Quota and close rate both slipped hard this week.',
+        focusAreas: ['quotaAttainment', 'closeRate'],
+        activities: [
+          {
+            title: 'Pipeline triage',
+            description: 'Review every open deal and confirm the next step.',
+            rationale: 'Bookings are well below target.',
+            metric: 'quotaAttainment',
+            priority: 'high',
+          },
+        ],
+      }),
+    );
+
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('ai');
+    expect(plan.summary).toMatch(/slipped hard/);
+    expect(plan.focusAreas).toEqual(['quotaAttainment', 'closeRate']);
+    expect(plan.activities).toHaveLength(1);
+    expect(plan.activities[0].title).toBe('Pipeline triage');
+  });
+
+  it('extracts JSON even when the model wraps it in prose / code fences', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    stubAnthropicText(
+      'Sure, here is the plan:\n```json\n' +
+        JSON.stringify({
+          summary: 'ok',
+          focusAreas: ['closeRate'],
+          activities: [{ title: 'T', description: 'D', rationale: 'R', metric: 'closeRate', priority: 'medium' }],
+        }) +
+        '\n```\nHope that helps!',
+    );
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('ai');
+    expect(plan.activities[0].title).toBe('T');
+  });
+
+  it('defaults invalid metric/priority values rather than failing', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    stubAnthropicText(
+      JSON.stringify({
+        summary: 's',
+        focusAreas: ['bogus'],
+        activities: [{ title: 'T', description: 'D', rationale: 'R', metric: 'made_up', priority: 'urgent' }],
+      }),
+    );
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('ai');
+    expect(plan.activities[0].metric).toBe('general');
+    expect(plan.activities[0].priority).toBe('medium');
+    // Unknown focus areas are dropped; falls back to the evaluation's slipping set.
+    expect(plan.focusAreas).toEqual(e.slipping);
+  });
+
+  it('falls back to rules when the model returns unparseable output', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    stubAnthropicText('I could not produce JSON, sorry.');
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('rules');
+    expect(plan.activities.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to rules when an activity is missing required fields', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    stubAnthropicText(JSON.stringify({ summary: 's', activities: [{ description: 'no title' }] }));
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('rules');
+  });
+
+  it('falls back to rules when the API errors', async () => {
+    const e = evaluateWeek('r1', '2026-07-13', failing, DEFAULT_THRESHOLDS);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 529, json: async () => ({}), text: async () => 'overloaded' })),
+    );
+    const plan = await generateCoachingPlan(rep, e, [e], env, config, '2026-07-13T00:00:00Z');
+    expect(plan.source).toBe('rules');
   });
 });
 
