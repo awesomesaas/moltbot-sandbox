@@ -14,15 +14,22 @@ import type {
   RepWeek,
   WeekEvaluation,
 } from './types';
+import type { CallRecord, CallWeek, CoachingOpportunity } from './types';
 import type { SalesConfig } from './config';
 import type { SalesStore } from './store';
-import type { AnthropicEnv } from './anthropic';
+import { hasAnthropic, type AnthropicEnv } from './anthropic';
 import type { CrmEnv } from './crm/adapter';
 import { createCrmAdapter } from './crm/adapter';
+import { createCallProvider, type CallEnv, type CallRepRef, type RawCall } from './calls/provider';
+import { aggregateCalls, buildCoachingOpportunity } from './calls/trigger';
+import { analyzeTranscript } from './calls/analyze';
 import { evaluateWeek } from './metrics';
 import { pipRecommendation, createPip, evaluatePipProgress } from './pip';
 import { generateCoachingPlan, generatePipDocument } from './coaching';
 import { addWeeks, mondayOf, normalizeWeek } from './dates';
+
+/** Max calls per rep per week to run (token-costly) AI transcript analysis on. */
+const MAX_AI_ANALYZED_CALLS = 3;
 
 /** Injectable clock/id sources so the service is deterministic in tests. */
 export interface ServiceDeps {
@@ -35,7 +42,7 @@ const defaultDeps: ServiceDeps = {
   uuid: () => crypto.randomUUID(),
 };
 
-export type SalesEnv = AnthropicEnv & CrmEnv;
+export type SalesEnv = AnthropicEnv & CrmEnv & CallEnv;
 
 export interface SyncResult {
   weeksSynced: string[];
@@ -147,6 +154,12 @@ export class SalesService {
       }
     }
 
+    // Pull and store call analytics for the same weeks (if enabled).
+    const callReps: CallRepRef[] = crmReps
+      .map((cr) => ({ repId: repIdByCrmId.get(cr.crmId) as string, name: cr.name, email: cr.email }))
+      .filter((r) => r.repId);
+    await this.syncCalls(callReps, weeks);
+
     // Reconcile PIP state now that new weeks are in.
     let pipsOpened = 0;
     let pipsResolved = 0;
@@ -157,6 +170,69 @@ export class SalesService {
     }
 
     return { weeksSynced: weeks, repsUpdated, pipsOpened, pipsResolved };
+  }
+
+  /**
+   * Pull call recordings for the given reps/weeks, compute talk ratios, and
+   * (for the latest week, when Anthropic is configured) enrich a capped number
+   * of calls with AI transcript insights. Transcripts are never persisted.
+   */
+  private async syncCalls(reps: CallRepRef[], weeks: string[]): Promise<void> {
+    const provider = createCallProvider(this.config, this.env);
+    if (!provider || reps.length === 0) return;
+
+    const latestWeek = weeks[weeks.length - 1];
+    const canAnalyze = hasAnthropic(this.env);
+    const repById = new Map(reps.map((r) => [r.repId, r]));
+
+    for (const weekOf of weeks) {
+      let raw: RawCall[];
+      try {
+        raw = await provider.fetchCalls(weekOf, reps);
+      } catch (err) {
+        console.error(`[sales] call fetch failed for week ${weekOf}:`, err instanceof Error ? err.message : err);
+        continue;
+      }
+
+      const analyzedPerRep = new Map<string, number>();
+      const records: CallRecord[] = [];
+      for (const c of raw) {
+        let insights = c.insights;
+        if (!insights && canAnalyze && weekOf === latestWeek && c.transcript) {
+          const n = analyzedPerRep.get(c.repId) ?? 0;
+          if (n < MAX_AI_ANALYZED_CALLS) {
+            analyzedPerRep.set(c.repId, n + 1);
+            const rep = repById.get(c.repId);
+            insights =
+              (await analyzeTranscript(this.env, this.config, c.transcript, rep?.name ?? '')) ?? undefined;
+          }
+        }
+        records.push({
+          id: c.id,
+          repId: c.repId,
+          date: c.date,
+          weekOf,
+          durationSec: c.durationSec,
+          talkRatio: c.talkRatio,
+          title: c.title,
+          source: provider.name,
+          insights,
+        });
+      }
+      if (records.length > 0) await this.store.saveCalls(records);
+    }
+  }
+
+  /** Load latest-week call analytics + the coaching opportunity for a rep. */
+  private async callContext(
+    repId: string,
+    latest: WeekEvaluation | null,
+  ): Promise<{ callWeek: CallWeek | null; opportunity: CoachingOpportunity | null; calls: CallRecord[] }> {
+    if (!latest) return { callWeek: null, opportunity: null, calls: [] };
+    const calls = await this.store.getCalls(repId, latest.weekOf);
+    const callWeek = aggregateCalls(repId, latest.weekOf, calls);
+    const opportunity = buildCoachingOpportunity(latest, callWeek, this.config.talkRatioThreshold);
+    return { callWeek, opportunity, calls };
   }
 
   /**
@@ -266,7 +342,20 @@ export class SalesService {
     const evaluation = evaluations.find((e) => e.weekOf === targetWeek);
     if (!evaluation) throw new Error(`No data for week ${targetWeek}`);
 
-    const plan = await generateCoachingPlan(rep, evaluation, evaluations, this.env, this.config, this.nowIso());
+    // Fold in the call-analytics coaching opportunity for this week, if any.
+    const calls = await this.store.getCalls(repId, targetWeek);
+    const callWeek = aggregateCalls(repId, targetWeek, calls);
+    const opportunity = buildCoachingOpportunity(evaluation, callWeek, this.config.talkRatioThreshold);
+
+    const plan = await generateCoachingPlan(
+      rep,
+      evaluation,
+      evaluations,
+      this.env,
+      this.config,
+      this.nowIso(),
+      opportunity,
+    );
     await this.store.saveCoachingPlan(plan);
     return plan;
   }
@@ -291,6 +380,7 @@ export class SalesService {
       const activePip = await this.store.getActivePip(rep.id);
       const pips = await this.store.listPips(rep.id);
       const rec = pipRecommendation(evaluations, this.config.pip);
+      const { callWeek, opportunity } = await this.callContext(rep.id, latest);
       rows.push({
         rep,
         latestWeek: latest?.weekOf ?? null,
@@ -299,6 +389,8 @@ export class SalesService {
         activePipId: activePip?.id ?? null,
         atRiskStreak: rec.atRiskStreak,
         topFocus: latest?.slipping[0] ?? null,
+        callWeek,
+        opportunity,
       });
     }
     return rows;
@@ -315,6 +407,7 @@ export class SalesService {
     const pips = await this.store.listPips(repId);
     const rec = pipRecommendation(evaluations, this.config.pip);
     const latestCoaching = await this.store.getLatestCoachingPlan(repId);
+    const { callWeek, opportunity, calls } = await this.callContext(repId, latest);
 
     return {
       rep,
@@ -326,6 +419,9 @@ export class SalesService {
       activePip,
       pips,
       latestCoaching,
+      callWeek,
+      latestCalls: calls,
+      opportunity,
     };
   }
 

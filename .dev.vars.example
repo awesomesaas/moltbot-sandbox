@@ -47,3 +47,10 @@ MOLTBOT_GATEWAY_TOKEN=dev-token-change-in-prod
 # SALES_PIP_AFTER_WEEKS=3                 # consecutive at-risk weeks before a PIP
 # SALES_PIP_DURATION_WEEKS=6
 # SALES_DEFAULT_WEEKLY_QUOTA=20000        # used by the HubSpot adapter
+# Call analytics (talk-ratio coaching trigger):
+# SALES_CALL_PROVIDER=mock                # mock (default) | zoom | google_meet | none
+# SALES_TALK_RATIO_THRESHOLD=0.65
+# ZOOM_ACCOUNT_ID=...                     # required when SALES_CALL_PROVIDER=zoom
+# ZOOM_CLIENT_ID=...
+# ZOOM_CLIENT_SECRET=...
+# GOOGLE_MEET_ACCESS_TOKEN=...            # required when SALES_CALL_PROVIDER=google_meet

@@ -70,12 +70,22 @@ export const METRIC_KEYS: MetricKey[] = [
 /** Default Anthropic model for coaching generation. */
 export const DEFAULT_COACH_MODEL = 'claude-opus-4-8';
 
+/**
+ * Rep talk-to-total ratio at/above which a call is "one-sided". Combined
+ * with a declining close rate / revenue it triggers a coaching opportunity.
+ */
+export const DEFAULT_TALK_RATIO_THRESHOLD = 0.65;
+
 /** Resolved runtime configuration for the module. */
 export interface SalesConfig {
   thresholds: Thresholds;
   pip: PipConfig;
   coachModel: string;
   crmProvider: string;
+  /** Call-recording analytics source: 'mock' (default) | 'zoom' | 'google_meet' | 'none'. */
+  callProvider: string;
+  /** Talk-ratio threshold for the coaching-opportunity trigger. */
+  talkRatioThreshold: number;
 }
 
 /** Parse a positive number env var, falling back to a default. */
@@ -100,6 +110,8 @@ export function resolveConfig(env: {
   SALES_PIP_DURATION_WEEKS?: string;
   SALES_COACH_MODEL?: string;
   SALES_CRM_PROVIDER?: string;
+  SALES_CALL_PROVIDER?: string;
+  SALES_TALK_RATIO_THRESHOLD?: string;
 }): SalesConfig {
   return {
     thresholds: {
@@ -116,5 +128,10 @@ export function resolveConfig(env: {
     },
     coachModel: env.SALES_COACH_MODEL || DEFAULT_COACH_MODEL,
     crmProvider: (env.SALES_CRM_PROVIDER || 'mock').toLowerCase(),
+    callProvider: (env.SALES_CALL_PROVIDER || 'mock').toLowerCase(),
+    talkRatioThreshold: (() => {
+      const v = num(env.SALES_TALK_RATIO_THRESHOLD, DEFAULT_TALK_RATIO_THRESHOLD);
+      return v > 0 && v < 1 ? v : DEFAULT_TALK_RATIO_THRESHOLD;
+    })(),
   };
 }

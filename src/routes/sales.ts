@@ -38,6 +38,8 @@ sales.get('/status', (c) => {
     configured: !!c.env.SALES_DB,
     aiCoaching: hasAnthropic(c.env),
     crmProvider: config.crmProvider,
+    callProvider: config.callProvider,
+    talkRatioThreshold: config.talkRatioThreshold,
     thresholds: config.thresholds,
     pip: config.pip,
     message: c.env.SALES_DB

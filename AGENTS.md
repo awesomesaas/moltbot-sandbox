@@ -265,6 +265,15 @@ pull weekly figures → evaluate → coach → escalate to a PIP.
 - **CRM is an interface.** `CrmAdapter` (`crm/adapter.ts`) with a `MockCrmAdapter`
   (deterministic sample data, the default) and a `HubSpotCrmAdapter`. Add new
   CRMs by implementing the interface and extending `createCrmAdapter`.
+- **Call analytics is a parallel interface.** `CallAnalyticsProvider`
+  (`calls/provider.ts`) with `MockCallProvider` (default), `ZoomCallProvider`,
+  and `GoogleMeetCallProvider`. `calls/transcript.ts` (VTT parsing + talk ratio)
+  and `calls/trigger.ts` (weekly aggregate + the coaching-opportunity rule) are
+  pure and tested; `calls/analyze.ts` is the optional Claude transcript-insight
+  layer. The trigger fires when avg talk ratio ≥ threshold AND close rate/quota
+  is declining, surfacing the `discovery-listening` play with evidence. Raw
+  transcripts are never persisted — only derived `CallRecord`s (talk ratio +
+  insights) in the `sales_calls` table.
 - **AI with a fallback.** `coaching.ts` calls Anthropic via `anthropic.ts`
   (raw `fetch` to `/v1/messages`, honoring the same AI Gateway / direct routing
   as the container). Every AI path validates output and falls back to the

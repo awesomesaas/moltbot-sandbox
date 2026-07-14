@@ -192,6 +192,73 @@ export interface CoachingPlan {
   createdAt: string;
 }
 
+/**
+ * AI-derived insights from a single call transcript. Optional — populated
+ * only when transcript analysis (Anthropic) is enabled and succeeds.
+ */
+export interface CallInsights {
+  /** Number of questions the rep asked. */
+  questionsAsked: number;
+  /** Longest uninterrupted rep monologue, in seconds. */
+  longestMonologueSec: number;
+  /** Whether a concrete next step was secured on the call. */
+  nextStepSecured: boolean;
+  /** Objections raised by the prospect that the rep left unhandled. */
+  missedObjections: string[];
+  /** One-line summary of the call dynamics. */
+  summary: string;
+}
+
+/**
+ * Derived record for one analyzed call. Note: raw transcripts are NOT stored
+ * — only these derived signals — to minimize PII retention.
+ */
+export interface CallRecord {
+  id: string;
+  repId: string;
+  /** ISO date (YYYY-MM-DD) of the call. */
+  date: string;
+  /** Monday-anchored week the call belongs to. */
+  weekOf: string;
+  durationSec: number;
+  /** Rep speaking time / total speaking time, 0..1. */
+  talkRatio: number;
+  title?: string;
+  source: string;
+  insights?: CallInsights;
+}
+
+/** Weekly call-analytics aggregate for a rep. */
+export interface CallWeek {
+  repId: string;
+  weekOf: string;
+  callsAnalyzed: number;
+  /** Duration-weighted average rep talk ratio, 0..1. */
+  avgTalkRatio: number;
+  totalDurationSec: number;
+  /** Present when any call in the week has AI insights. */
+  avgQuestionsAsked?: number;
+  maxMonologueSec?: number;
+  /** Fraction of calls where a next step was secured, 0..1. */
+  nextStepRate?: number;
+}
+
+/**
+ * A data-driven coaching trigger: a call-behavior signal (high talk ratio)
+ * that co-occurs with a declining outcome metric (close rate / revenue).
+ */
+export interface CoachingOpportunity {
+  repId: string;
+  weekOf: string;
+  /** The outcome metric that is slipping/declining. */
+  metric: MetricKey;
+  /** Playbook situation to run (e.g. 'discovery-listening'). */
+  situationId: string;
+  /** Human-readable evidence tying the behavior to the metric. */
+  evidence: string;
+  talkRatio: number;
+}
+
 /** Rep summary row for the owner overview dashboard. */
 export interface RepOverview {
   rep: Rep;
@@ -203,6 +270,10 @@ export interface RepOverview {
   atRiskStreak: number;
   /** The single most important focus area, if any. */
   topFocus: MetricKey | null;
+  /** Latest week's call analytics, if any calls were analyzed. */
+  callWeek: CallWeek | null;
+  /** A data-driven coaching trigger from call behavior, if fired. */
+  opportunity: CoachingOpportunity | null;
 }
 
 /** Full detail for a single rep (drill-down view). */
@@ -216,4 +287,10 @@ export interface RepDashboard {
   activePip: Pip | null;
   pips: Pip[];
   latestCoaching: CoachingPlan | null;
+  /** Latest week's call analytics aggregate, if any. */
+  callWeek: CallWeek | null;
+  /** Individual analyzed calls for the latest week (most recent first). */
+  latestCalls: CallRecord[];
+  /** A data-driven coaching trigger from call behavior, if fired. */
+  opportunity: CoachingOpportunity | null;
 }

@@ -15,7 +15,11 @@ import type {
 } from '../sales/types'
 
 export type {
+  CallInsights,
+  CallRecord,
+  CallWeek,
   CoachingActivity,
+  CoachingOpportunity,
   CoachingPlan,
   HealthStatus,
   MetricEvaluation,
@@ -61,6 +65,8 @@ export interface SalesStatus {
   configured: boolean
   aiCoaching: boolean
   crmProvider: string
+  callProvider: string
+  talkRatioThreshold: number
   thresholds: Thresholds
   pip: { pipAfterWeeks: number; pipDurationWeeks: number; recoveryWeeksToPass: number }
   message: string

@@ -280,6 +280,9 @@ export default function SalesPage() {
           {status && (
             <>
               <span className="sc-muted">CRM: {status.crmProvider}</span>
+              {status.callProvider !== 'none' && (
+                <span className="sc-muted">Calls: {status.callProvider}</span>
+              )}
               <span className={`sc-badge ${status.aiCoaching ? 'sc-ai-on' : 'sc-ai-off'}`}>
                 {status.aiCoaching ? 'AI coaching on' : 'Rule-based coaching'}
               </span>
@@ -315,6 +318,7 @@ export default function SalesPage() {
               <th>Quota</th>
               <th>Pipeline</th>
               <th>Close</th>
+              <th>Talk</th>
               <th>Status</th>
               <th>Focus this week</th>
             </tr>
@@ -338,6 +342,22 @@ export default function SalesPage() {
                   <td>{q ? formatMetric('quotaAttainment', q.value) : '—'}</td>
                   <td>{p ? formatMetric('pipelineCoverage', p.value) : '—'}</td>
                   <td>{c ? formatMetric('closeRate', c.value) : '—'}</td>
+                  <td>
+                    {r.callWeek ? (
+                      <span
+                        className={r.opportunity ? 'sc-talk-warn' : undefined}
+                        title={
+                          r.opportunity
+                            ? r.opportunity.evidence
+                            : `${r.callWeek.callsAnalyzed} call(s) analyzed`
+                        }
+                      >
+                        {Math.round(r.callWeek.avgTalkRatio * 100)}%{r.opportunity ? ' ⚠' : ''}
+                      </span>
+                    ) : (
+                      <span className="sc-muted">—</span>
+                    )}
+                  </td>
                   <td>
                     <PipBadge status={r.pipStatus} />
                   </td>
@@ -364,6 +384,7 @@ export default function SalesPage() {
               onRefreshPip={runRefreshPip}
               onSetQuota={setQuota}
               onSetNotes={setNotes}
+              talkRatioThreshold={status?.talkRatioThreshold ?? 0.65}
               showPipDoc={showPipDoc}
               onTogglePipDoc={() => setShowPipDoc((v) => !v)}
               onClose={() => setSelectedId(null)}
@@ -383,6 +404,7 @@ function RepDetail({
   onRefreshPip,
   onSetQuota,
   onSetNotes,
+  talkRatioThreshold,
   showPipDoc,
   onTogglePipDoc,
   onClose,
@@ -394,6 +416,7 @@ function RepDetail({
   onRefreshPip: (pipId: string) => void
   onSetQuota: () => void
   onSetNotes: () => void
+  talkRatioThreshold: number
   showPipDoc: boolean
   onTogglePipDoc: () => void
   onClose: () => void
@@ -438,6 +461,64 @@ function RepDetail({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Call analytics (talk ratio + AI insights) */}
+      {dashboard.callWeek && (
+        <section className="sc-section">
+          <h3>Call analytics</h3>
+          {dashboard.opportunity && (
+            <div className="sc-opportunity">
+              <strong>⚠ Coaching opportunity:</strong> {dashboard.opportunity.evidence} This is factored into the
+              coaching plan below.
+            </div>
+          )}
+          <div className="sc-call-summary">
+            <span>
+              <strong>{Math.round(dashboard.callWeek.avgTalkRatio * 100)}%</strong> avg talk ratio
+            </span>
+            <span>{dashboard.callWeek.callsAnalyzed} call(s) analyzed</span>
+            {dashboard.callWeek.avgQuestionsAsked !== undefined && (
+              <span>{dashboard.callWeek.avgQuestionsAsked.toFixed(1)} avg questions</span>
+            )}
+            {dashboard.callWeek.nextStepRate !== undefined && (
+              <span>{Math.round(dashboard.callWeek.nextStepRate * 100)}% secured a next step</span>
+            )}
+          </div>
+          {dashboard.latestCalls.length > 0 && (
+            <table className="sc-calls">
+              <thead>
+                <tr>
+                  <th>Call</th>
+                  <th>Date</th>
+                  <th>Talk</th>
+                  <th>Insights</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.latestCalls.map((call) => (
+                  <tr key={call.id}>
+                    <td>{call.title ?? 'Call'}</td>
+                    <td>{call.date}</td>
+                    <td className={call.talkRatio >= talkRatioThreshold ? 'sc-talk-warn' : undefined}>
+                      {Math.round(call.talkRatio * 100)}%
+                    </td>
+                    <td>
+                      {call.insights ? (
+                        <span className="sc-muted">
+                          {call.insights.questionsAsked} Qs · {Math.round(call.insights.longestMonologueSec / 60)}m max
+                          monologue · {call.insights.nextStepSecured ? 'next step ✅' : 'no next step'}
+                        </span>
+                      ) : (
+                        <span className="sc-muted">talk ratio only</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
       )}
 
       {/* Observed challenges (owner notes that steer coaching) */}

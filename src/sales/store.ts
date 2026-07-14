@@ -10,7 +10,7 @@
  * no migration tooling is required.
  */
 
-import type { CoachingPlan, Pip, Rep, RepWeek } from './types';
+import type { CallRecord, CoachingPlan, Pip, Rep, RepWeek } from './types';
 
 export interface SalesStore {
   /** Ensure the backing schema exists. Safe to call repeatedly. */
@@ -24,6 +24,11 @@ export interface SalesStore {
   getWeeks(repId: string): Promise<RepWeek[]>;
   getWeek(repId: string, weekOf: string): Promise<RepWeek | null>;
   saveWeek(week: RepWeek): Promise<void>;
+
+  /** Upsert analyzed call records (by id). */
+  saveCalls(calls: CallRecord[]): Promise<void>;
+  /** Calls for a rep, optionally filtered to one week; most recent first. */
+  getCalls(repId: string, weekOf?: string): Promise<CallRecord[]>;
 
   saveCoachingPlan(plan: CoachingPlan): Promise<void>;
   getCoachingPlan(repId: string, weekOf: string): Promise<CoachingPlan | null>;
@@ -44,6 +49,7 @@ export class MemorySalesStore implements SalesStore {
   private weeks = new Map<string, RepWeek>(); // key: repId|weekOf
   private plans = new Map<string, CoachingPlan>(); // key: repId|weekOf
   private pips = new Map<string, Pip>();
+  private calls = new Map<string, CallRecord>(); // key: call id
 
   private static wkey(repId: string, weekOf: string): string {
     return `${repId}|${weekOf}`;
@@ -78,6 +84,16 @@ export class MemorySalesStore implements SalesStore {
 
   async saveWeek(week: RepWeek): Promise<void> {
     this.weeks.set(MemorySalesStore.wkey(week.repId, week.weekOf), { ...week });
+  }
+
+  async saveCalls(calls: CallRecord[]): Promise<void> {
+    for (const c of calls) this.calls.set(c.id, { ...c });
+  }
+
+  async getCalls(repId: string, weekOf?: string): Promise<CallRecord[]> {
+    return [...this.calls.values()]
+      .filter((c) => c.repId === repId && (weekOf ? c.weekOf === weekOf : true))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async saveCoachingPlan(plan: CoachingPlan): Promise<void> {
@@ -159,6 +175,14 @@ export const SCHEMA_STATEMENTS: string[] = [
      started_week TEXT NOT NULL,
      data TEXT NOT NULL,
      updated_at TEXT NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS sales_calls (
+     id TEXT PRIMARY KEY,
+     rep_id TEXT NOT NULL,
+     week_of TEXT NOT NULL,
+     call_date TEXT NOT NULL,
+     data TEXT NOT NULL,
+     ingested_at TEXT NOT NULL
    )`,
 ];
 
@@ -294,6 +318,33 @@ export class D1SalesStore implements SalesStore {
       )
       .bind(week.repId, week.weekOf, JSON.stringify(week.metrics), week.source, week.ingestedAt)
       .run();
+  }
+
+  async saveCalls(calls: CallRecord[]): Promise<void> {
+    for (const c of calls) {
+      await this.db
+        .prepare(
+          `INSERT INTO sales_calls (id, rep_id, week_of, call_date, data, ingested_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             week_of = excluded.week_of,
+             call_date = excluded.call_date,
+             data = excluded.data,
+             ingested_at = excluded.ingested_at`,
+        )
+        .bind(c.id, c.repId, c.weekOf, c.date, JSON.stringify(c), new Date().toISOString())
+        .run();
+    }
+  }
+
+  async getCalls(repId: string, weekOf?: string): Promise<CallRecord[]> {
+    const query = weekOf
+      ? this.db
+          .prepare('SELECT data FROM sales_calls WHERE rep_id = ? AND week_of = ? ORDER BY call_date DESC')
+          .bind(repId, weekOf)
+      : this.db.prepare('SELECT data FROM sales_calls WHERE rep_id = ? ORDER BY call_date DESC').bind(repId);
+    const { results } = await query.all<{ data: string }>();
+    return (results ?? []).map((r) => JSON.parse(r.data) as CallRecord);
   }
 
   async saveCoachingPlan(plan: CoachingPlan): Promise<void> {

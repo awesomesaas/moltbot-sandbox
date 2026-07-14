@@ -178,6 +178,42 @@ describe('SalesService coaching + PIP + dashboard', () => {
     expect(after?.notes).toBe('custom owner note about discounting');
   });
 
+  it('fires a call-analytics coaching opportunity for a high-talk-ratio rep with slipping outcomes', async () => {
+    const { svc } = makeService();
+    await svc.sync(6);
+    const overview = await svc.getOverview();
+
+    const henry = overview.find((r) => r.rep.name === 'Henry Cole')!;
+    expect(henry.callWeek).not.toBeNull();
+    expect(henry.callWeek!.avgTalkRatio).toBeGreaterThan(0.65);
+    expect(henry.opportunity).not.toBeNull();
+    expect(henry.opportunity!.situationId).toBe('discovery-listening');
+    expect(henry.opportunity!.metric).toBe('closeRate');
+
+    // A strong listener with healthy outcomes gets no opportunity.
+    const ava = overview.find((r) => r.rep.name === 'Ava Chen')!;
+    expect(ava.opportunity).toBeNull();
+  });
+
+  it('folds the call-analytics evidence into the coaching plan', async () => {
+    const { svc, store } = makeService();
+    await svc.sync(6);
+    const henry = (await store.listReps()).find((r) => r.name === 'Henry Cole')!;
+    const plan = await svc.generateCoaching(henry.id);
+    const play = plan.activities.find((a) => a.title === 'Talk less, diagnose more');
+    expect(play).toBeDefined();
+    expect(play!.rationale).toMatch(/talk ratio/i);
+  });
+
+  it('stores analyzed calls for the latest week', async () => {
+    const { svc, store } = makeService();
+    await svc.sync(6);
+    const henry = (await store.listReps()).find((r) => r.name === 'Henry Cole')!;
+    const dash = await svc.getRepDashboard(henry.id);
+    expect(dash!.latestCalls.length).toBeGreaterThanOrEqual(3);
+    expect(dash!.callWeek).not.toBeNull();
+  });
+
   it('seedDemo populates weeks and coaching for every rep', async () => {
     const { svc, store } = makeService();
     const result = await svc.seedDemo(6);

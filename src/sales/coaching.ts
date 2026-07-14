@@ -7,6 +7,7 @@
 
 import type {
   CoachingActivity,
+  CoachingOpportunity,
   CoachingPlan,
   MetricEvaluation,
   MetricKey,
@@ -18,7 +19,7 @@ import type { SalesConfig } from './config';
 import { METRIC_META } from './config';
 import { formatDelta, formatMetricValue } from './format';
 import { callAnthropic, extractJson, hasAnthropic, type AnthropicEnv } from './anthropic';
-import { PLAYBOOK, matchSituations, primarySituation, situationToActivity } from './playbook';
+import { PLAYBOOK, matchSituations, primarySituation, situationById, situationToActivity } from './playbook';
 
 /** Max activities in a single rule-based plan. */
 const MAX_ACTIVITIES = 6;
@@ -52,6 +53,7 @@ export function summarizeEvaluation(evaluation: WeekEvaluation): string {
 export function buildRuleBasedActivities(
   evaluation: WeekEvaluation,
   notes?: string,
+  opportunity?: CoachingOpportunity | null,
 ): CoachingActivity[] {
   const activities: CoachingActivity[] = [];
   const usedIds = new Set<string>();
@@ -62,7 +64,16 @@ export function buildRuleBasedActivities(
     activities.push(activity);
   };
 
-  // 1. Owner-observed challenges the metrics can't reveal.
+  // 1. Data-driven call-analytics trigger, with its evidence attached.
+  if (opportunity) {
+    const s = situationById(opportunity.situationId);
+    if (s) {
+      const activity = situationToActivity(s, 'high');
+      add(s.id, { ...activity, rationale: `${activity.rationale} ${opportunity.evidence}` });
+    }
+  }
+
+  // 2. Owner-observed challenges the metrics can't reveal.
   for (const s of matchSituations(notes)) {
     add(s.id, situationToActivity(s, 'high'));
   }
@@ -98,13 +109,14 @@ export function buildRuleBasedPlan(
   rep: Rep,
   evaluation: WeekEvaluation,
   nowIso: string,
+  opportunity?: CoachingOpportunity | null,
 ): CoachingPlan {
   return {
     repId: rep.id,
     weekOf: evaluation.weekOf,
     summary: summarizeEvaluation(evaluation),
     focusAreas: evaluation.slipping,
-    activities: buildRuleBasedActivities(evaluation, rep.notes),
+    activities: buildRuleBasedActivities(evaluation, rep.notes, opportunity),
     source: 'rules',
     createdAt: nowIso,
   };
@@ -144,6 +156,7 @@ function buildCoachUserPrompt(
   rep: Rep,
   evaluation: WeekEvaluation,
   history: WeekEvaluation[],
+  opportunity?: CoachingOpportunity | null,
 ): string {
   const trend = history
     .slice(-4)
@@ -160,11 +173,14 @@ function buildCoachUserPrompt(
     ...(rep.notes && rep.notes.trim()
       ? ['', `Manager's observed challenges for this rep: ${rep.notes.trim()}`]
       : []),
+    ...(opportunity
+      ? ['', `Call-analytics signal: ${opportunity.evidence} Prioritize a play that addresses this.`]
+      : []),
     '',
     'Recent health trend:',
     trend || '  (no prior weeks)',
     '',
-    'Produce 2–4 coaching activities prioritizing the metrics that are slipping and any challenge the manager noted.',
+    'Produce 2–4 coaching activities prioritizing the metrics that are slipping, the call-analytics signal, and any challenge the manager noted.',
   ].join('\n');
 }
 
@@ -245,21 +261,22 @@ export async function generateCoachingPlan(
   env: AnthropicEnv,
   config: SalesConfig,
   nowIso: string,
+  opportunity?: CoachingOpportunity | null,
 ): Promise<CoachingPlan> {
   if (!hasAnthropic(env)) {
-    return buildRuleBasedPlan(rep, evaluation, nowIso);
+    return buildRuleBasedPlan(rep, evaluation, nowIso, opportunity);
   }
   try {
     const text = await callAnthropic(env, {
       model: config.coachModel,
       system: COACH_SYSTEM,
-      user: buildCoachUserPrompt(rep, evaluation, history),
+      user: buildCoachUserPrompt(rep, evaluation, history, opportunity),
       maxTokens: 1500,
     });
     return parseAiPlan(extractJson(text), rep, evaluation, nowIso);
   } catch (err) {
     console.error('[sales] coaching AI generation failed, using rules:', err);
-    return buildRuleBasedPlan(rep, evaluation, nowIso);
+    return buildRuleBasedPlan(rep, evaluation, nowIso, opportunity);
   }
 }
 

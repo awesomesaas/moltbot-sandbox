@@ -363,6 +363,37 @@ week-over-week trend, rolling up to an overall health score and a `healthy` /
   detail view). The coach matches your note to the right play and prioritizes it,
   and it's included in the prompt to Claude. The demo reps come pre-seeded with
   example observations so you can see this immediately.
+- **Call analytics (talk-ratio trigger)** — the tool can analyze Zoom / Google
+  Meet recordings to compute each rep's talk-to-listen ratio, then fire a
+  **coaching opportunity** when a high talk ratio co-occurs with a declining
+  close rate or revenue — automatically surfacing the "talk less, diagnose more"
+  play with the evidence attached. See below.
+
+### Call analytics: talk-ratio coaching trigger
+
+Talk ratio needs no ML — Zoom and Meet already label speakers in their
+transcripts, so the tool sums per-speaker time and computes `rep time ÷ total`.
+When Anthropic is configured it also runs a capped number of recent transcripts
+through Claude for richer signals (questions asked, longest monologue, next-step
+secured, missed objections). **Raw transcripts are never stored** — only the
+derived talk ratio and insights.
+
+- **Provider** — set `SALES_CALL_PROVIDER` to `mock` (default, works out of the
+  box), `zoom`, `google_meet`, or `none` to disable.
+- **Zoom** — needs a server-to-server OAuth app (`ZOOM_ACCOUNT_ID`,
+  `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`) with recording read scopes and audio
+  transcription enabled so recordings include a transcript file.
+- **Google Meet** — needs a Workspace OAuth token (`GOOGLE_MEET_ACCESS_TOKEN`)
+  with the Meet REST scopes and meeting transcripts enabled.
+- **Trigger** — when a rep's duration-weighted avg talk ratio for the week is at
+  or above `SALES_TALK_RATIO_THRESHOLD` (default `0.65`) **and** their close rate
+  or quota attainment is slipping/declining, a coaching opportunity is raised on
+  the dashboard and folded into that rep's coaching plan.
+
+> **Privacy:** analyzing call recordings carries consent and data-handling
+> obligations. Only derived signals are persisted (no transcripts), but ensure
+> recording/consent practices meet your jurisdiction's requirements before
+> enabling a live provider.
 - **PIPs** — after a rep is at risk for `SALES_PIP_AFTER_WEEKS` (default 3)
   consecutive weeks, a PIP is opened automatically on the next sync: measurable
   milestones are created and a full PIP document is generated (Claude when
@@ -503,6 +534,12 @@ The `AI_GATEWAY_*` variables take precedence over `ANTHROPIC_*` if both are set.
 | `SALES_PIP_AFTER_WEEKS` | No | Consecutive at-risk weeks before a PIP is opened (default `3`) |
 | `SALES_PIP_DURATION_WEEKS` | No | PIP length in weeks (default `6`) |
 | `SALES_DEFAULT_WEEKLY_QUOTA` | No | Default weekly quota used by the HubSpot adapter (default `20000`) |
+| `SALES_CALL_PROVIDER` | No | Call analytics source: `mock` (default), `zoom`, `google_meet`, or `none` |
+| `SALES_TALK_RATIO_THRESHOLD` | No | Talk-ratio trigger threshold, e.g. `0.65` (default) |
+| `ZOOM_ACCOUNT_ID` | No | Zoom server-to-server OAuth account ID (for `SALES_CALL_PROVIDER=zoom`) |
+| `ZOOM_CLIENT_ID` | No | Zoom OAuth client ID |
+| `ZOOM_CLIENT_SECRET` | No | Zoom OAuth client secret |
+| `GOOGLE_MEET_ACCESS_TOKEN` | No | Google Meet REST OAuth token (for `SALES_CALL_PROVIDER=google_meet`) |
 
 ## Security Considerations
 

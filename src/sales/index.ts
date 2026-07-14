@@ -22,6 +22,15 @@ export { createCrmAdapter } from './crm/adapter';
 export type { CrmAdapter, CrmRep, CrmRepMetrics } from './crm/adapter';
 export { MockCrmAdapter } from './crm/mock';
 export { HubSpotCrmAdapter, aggregateDealsToMetrics, normalizeHubSpotDeal } from './crm/hubspot';
+export { createCallProvider } from './calls/provider';
+export type { CallAnalyticsProvider, CallRepRef, RawCall } from './calls/provider';
+export { MockCallProvider } from './calls/mock';
+export { ZoomCallProvider } from './calls/zoom';
+export { GoogleMeetCallProvider } from './calls/meet';
+export { parseVtt, talkRatio, repSpeakerMatcher, longestMonologueSec } from './calls/transcript';
+export type { TranscriptSegment } from './calls/transcript';
+export { aggregateCalls, buildCoachingOpportunity, TALK_HEAVY_SITUATION } from './calls/trigger';
+export { analyzeTranscript } from './calls/analyze';
 export {
   PLAYBOOK,
   situationsForMetric,

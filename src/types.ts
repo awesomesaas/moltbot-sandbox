@@ -20,6 +20,13 @@ export interface MoltbotEnv {
   SALES_PIP_DURATION_WEEKS?: string;
   SALES_DEFAULT_WEEKLY_QUOTA?: string;
   HUBSPOT_ACCESS_TOKEN?: string; // Private app token for the HubSpot CRM adapter
+  // Sales call-analytics (talk-ratio) module
+  SALES_CALL_PROVIDER?: string; // 'mock' (default) | 'zoom' | 'google_meet' | 'none'
+  SALES_TALK_RATIO_THRESHOLD?: string; // e.g. '0.65'
+  ZOOM_ACCOUNT_ID?: string;
+  ZOOM_CLIENT_ID?: string;
+  ZOOM_CLIENT_SECRET?: string;
+  GOOGLE_MEET_ACCESS_TOKEN?: string;
   // AI Gateway configuration (preferred)
   AI_GATEWAY_API_KEY?: string; // API key for the provider configured in AI Gateway
   AI_GATEWAY_BASE_URL?: string; // AI Gateway URL (e.g., https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic)

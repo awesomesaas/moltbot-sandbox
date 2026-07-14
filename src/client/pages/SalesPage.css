@@ -317,6 +317,37 @@ button:disabled {
   font-style: italic;
 }
 
+/* Call analytics */
+.sc-talk-warn {
+  color: var(--error-color);
+  font-weight: 600;
+}
+.sc-opportunity {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: var(--border-radius);
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.sc-call-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+}
+.sc-calls {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sc-calls th,
+.sc-calls td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
 /* Activities */
 .sc-activities {
   display: flex;
