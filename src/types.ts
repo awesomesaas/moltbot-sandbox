@@ -7,6 +7,26 @@ export interface MoltbotEnv {
   Sandbox: DurableObjectNamespace<Sandbox>;
   ASSETS: Fetcher; // Assets binding for admin UI static files
   MOLTBOT_BUCKET: R2Bucket; // R2 bucket for persistent storage
+  SALES_DB?: D1Database; // D1 database for the Sales Coaching module (optional)
+  // Sales Coaching module configuration (all optional; see src/sales/config.ts)
+  SALES_CRM_PROVIDER?: string; // 'mock' (default) | 'hubspot' | 'salesforce'
+  SALES_COACH_MODEL?: string; // Anthropic model for coaching generation
+  SALES_QUOTA_ATTAINMENT_TARGET?: string;
+  SALES_PIPELINE_COVERAGE_TARGET?: string;
+  SALES_CLOSE_RATE_TARGET?: string;
+  SALES_PROPOSALS_TARGET?: string;
+  SALES_PROFIT_MARGIN_TARGET?: string;
+  SALES_PIP_AFTER_WEEKS?: string;
+  SALES_PIP_DURATION_WEEKS?: string;
+  SALES_DEFAULT_WEEKLY_QUOTA?: string;
+  HUBSPOT_ACCESS_TOKEN?: string; // Private app token for the HubSpot CRM adapter
+  // Sales call-analytics (talk-ratio) module
+  SALES_CALL_PROVIDER?: string; // 'mock' (default) | 'zoom' | 'google_meet' | 'none'
+  SALES_TALK_RATIO_THRESHOLD?: string; // e.g. '0.65'
+  ZOOM_ACCOUNT_ID?: string;
+  ZOOM_CLIENT_ID?: string;
+  ZOOM_CLIENT_SECRET?: string;
+  GOOGLE_MEET_ACCESS_TOKEN?: string;
   // AI Gateway configuration (preferred)
   AI_GATEWAY_API_KEY?: string; // API key for the provider configured in AI Gateway
   AI_GATEWAY_BASE_URL?: string; // AI Gateway URL (e.g., https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic)

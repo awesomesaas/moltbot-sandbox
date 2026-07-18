@@ -1,0 +1,526 @@
+/* Sales Coaching page styles (aligned with the dark theme in index.css) */
+
+.sc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sc-loading,
+.sc-empty,
+.sc-setup {
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.sc-setup h2 {
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+.sc-setup ol {
+  margin: 1rem 0 1rem 1.25rem;
+  line-height: 2;
+}
+.sc-setup code,
+.sc-page code {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.85em;
+}
+
+.sc-muted {
+  color: var(--text-secondary);
+}
+.sc-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  padding: 0;
+  font-weight: 600;
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.sc-link:hover {
+  color: var(--primary-hover);
+}
+.sc-sub {
+  font-size: 0.8rem;
+}
+
+/* Toolbar */
+.sc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.sc-toolbar-info,
+.sc-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+.sc-btn-primary,
+.sc-btn-secondary,
+.sc-btn-danger,
+.sc-btn-ghost {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 0.5rem 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sc-btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+.sc-btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.sc-btn-secondary {
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+.sc-btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.sc-btn-danger {
+  background: transparent;
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+.sc-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+}
+.sc-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.sc-btn-ghost:hover {
+  color: var(--text-primary);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sc-notice {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+}
+
+/* Overview table */
+.sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.sc-table th,
+.sc-table td {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.sc-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.sc-table tbody tr {
+  cursor: pointer;
+}
+.sc-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.sc-row-selected {
+  background: var(--surface-hover);
+}
+
+/* Chips & badges */
+.sc-chip,
+.sc-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.sc-health-healthy {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success-color);
+}
+.sc-health-watch {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning-color);
+}
+.sc-health-at_risk {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error-color);
+}
+
+.sc-pip-none {
+  background: rgba(160, 174, 192, 0.15);
+  color: var(--text-secondary);
+}
+.sc-pip-coaching {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+.sc-pip-at_risk {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning-color);
+}
+.sc-pip-pip_active {
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--error-color);
+}
+.sc-pip-pip_passed {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success-color);
+}
+.sc-pip-pip_failed {
+  background: rgba(107, 114, 128, 0.25);
+  color: var(--text-secondary);
+}
+.sc-ai-on {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--success-color);
+}
+.sc-ai-off {
+  background: rgba(160, 174, 192, 0.12);
+  color: var(--text-secondary);
+}
+
+/* Detail panel */
+.sc-detail {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+.sc-detail-inner {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.sc-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.sc-detail-head h2 {
+  margin-bottom: 0.25rem;
+}
+
+/* Metrics grid */
+.sc-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+.sc-metric {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
+}
+.sc-metric-slipping {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+.sc-metric-watch {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+.sc-metric-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.sc-metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+.sc-metric-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+.sc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.sc-dot-on_track {
+  background: var(--success-color);
+}
+.sc-dot-watch {
+  background: var(--warning-color);
+}
+.sc-dot-slipping {
+  background: var(--error-color);
+}
+.sc-trend-up {
+  color: var(--success-color);
+}
+.sc-trend-down {
+  color: var(--error-color);
+}
+.sc-trend-flat {
+  color: var(--text-muted);
+}
+
+/* Sections */
+.sc-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.25rem;
+}
+.sc-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.sc-summary {
+  margin-bottom: 0.75rem;
+}
+.sc-notes {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--warning-color);
+  border-radius: var(--border-radius);
+  padding: 0.6rem 0.9rem;
+  font-style: italic;
+}
+
+/* Call analytics */
+.sc-talk-warn {
+  color: var(--error-color);
+  font-weight: 600;
+}
+.sc-opportunity {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: var(--border-radius);
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.sc-call-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+}
+.sc-spark-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+}
+.sc-spark {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.sc-spark-line {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+.sc-spark-threshold {
+  stroke: var(--error-color);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+.sc-spark-dot {
+  fill: var(--text-secondary);
+}
+.sc-spark-dot-warn {
+  fill: var(--error-color);
+}
+.sc-calls {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sc-calls th,
+.sc-calls td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
+/* Activities */
+.sc-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.sc-activity {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--text-muted);
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+}
+.sc-activity.sc-prio-high {
+  border-left-color: var(--error-color);
+}
+.sc-activity.sc-prio-medium {
+  border-left-color: var(--warning-color);
+}
+.sc-activity.sc-prio-low {
+  border-left-color: var(--success-color);
+}
+.sc-activity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+.sc-activity-title {
+  font-weight: 600;
+}
+.sc-rationale {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+.sc-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+.sc-prio-tag-high {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error-color);
+}
+.sc-prio-tag-medium {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning-color);
+}
+.sc-prio-tag-low {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success-color);
+}
+
+/* PIP */
+.sc-pip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.sc-milestones {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+.sc-milestones th,
+.sc-milestones td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+.sc-pip-doc {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* History bars */
+.sc-history {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 120px;
+}
+.sc-history-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  flex: 1;
+  max-width: 60px;
+}
+.sc-history-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  min-height: 6px;
+}
+.sc-history-fill.sc-health-healthy {
+  background: var(--success-color);
+}
+.sc-history-fill.sc-health-watch {
+  background: var(--warning-color);
+}
+.sc-history-fill.sc-health-at_risk {
+  background: var(--error-color);
+}
+.sc-history-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+/* Spinner */
+.sc-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: sc-spin 0.7s linear infinite;
+}
+@keyframes sc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .sc-table {
+    display: block;
+    overflow-x: auto;
+  }
+}

@@ -326,6 +326,148 @@ node /root/clawd/skills/cloudflare-browser/scripts/video.js "https://site1.com,h
 
 See `skills/cloudflare-browser/SKILL.md` for full documentation.
 
+## Sales Coaching
+
+The worker includes a **Sales Coaching** tool for sales managers/owners. It pulls
+each rep's weekly figures from a CRM, evaluates them against targets and trends,
+generates specific coaching activities to run that week, and escalates a rep into
+a Performance Improvement Plan (PIP) — with a generated PIP document and tracked
+milestones — when they miss for too long.
+
+It lives in the same Control UI (served at `/_admin/`, protected by Cloudflare
+Access) under the **Sales Coaching** tab, and its API is at `/api/sales/*`.
+
+### What it tracks
+
+Per rep, per week: **quota attainment** (bookings ÷ quota), **pipeline coverage**
+(open pipeline ÷ quota), **close rate**, **proposals sent**, and **average profit
+margin per contract**. Each metric is scored against a configurable target and its
+week-over-week trend, rolling up to an overall health score and a `healthy` /
+`watch` / `at_risk` status.
+
+### How coaching & PIPs work
+
+- **Coaching** — for each rep the tool detects which metrics slipped and produces
+  2–4 concrete activities for the week. When `ANTHROPIC_API_KEY` (or the AI
+  Gateway) is configured, activities are written by Claude (`claude-opus-4-8` by
+  default); otherwise a deterministic rule-based plan is used. Coaching never
+  fails — it always returns a usable plan.
+- **Coaching playbook** — both paths draw on a library of concrete sales-coaching
+  plays (`src/sales/playbook.ts`) covering situations the raw numbers show (quota
+  gaps, thin pipeline, low close rate, few proposals, thin margins) *and*
+  behavioral ones they don't: prospects stalling before discovery/proposal
+  calls, trials that don't convert, not reaching decision-makers, and reps who
+  talk too much and miss buying signals.
+- **Observed challenges** — because those behavioral issues aren't in the
+  metrics, each rep has an optional free-text notes field (edit it from the rep
+  detail view). The coach matches your note to the right play and prioritizes it,
+  and it's included in the prompt to Claude. The demo reps come pre-seeded with
+  example observations so you can see this immediately.
+- **Call analytics (talk-ratio trigger)** — the tool can analyze Zoom / Google
+  Meet recordings to compute each rep's talk-to-listen ratio, then fire a
+  **coaching opportunity** when a high talk ratio co-occurs with a declining
+  close rate or revenue — automatically surfacing the "talk less, diagnose more"
+  play with the evidence attached. See below.
+
+### Call analytics: talk-ratio coaching trigger
+
+Talk ratio needs no ML — Zoom and Meet already label speakers in their
+transcripts, so the tool sums per-speaker time and computes `rep time ÷ total`.
+When Anthropic is configured it also runs a capped number of recent transcripts
+through Claude for richer signals (questions asked, longest monologue, next-step
+secured, missed objections). **Raw transcripts are never stored** — only the
+derived talk ratio and insights.
+
+- **Provider** — set `SALES_CALL_PROVIDER` to `mock` (default, works out of the
+  box), `zoom`, `google_meet`, or `none` to disable.
+- **Zoom** — needs a server-to-server OAuth app (`ZOOM_ACCOUNT_ID`,
+  `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET`) with recording read scopes and audio
+  transcription enabled so recordings include a transcript file.
+- **Google Meet** — needs a Workspace OAuth token (`GOOGLE_MEET_ACCESS_TOKEN`)
+  with the Meet REST scopes and meeting transcripts enabled.
+- **Trigger** — when a rep's duration-weighted avg talk ratio for the week is at
+  or above `SALES_TALK_RATIO_THRESHOLD` (default `0.65`) **and** their close rate
+  or quota attainment is slipping/declining, a coaching opportunity is raised on
+  the dashboard and folded into that rep's coaching plan.
+
+> **Privacy:** analyzing call recordings carries consent and data-handling
+> obligations. Only derived signals are persisted (no transcripts), but ensure
+> recording/consent practices meet your jurisdiction's requirements before
+> enabling a live provider.
+- **PIPs** — after a rep is at risk for `SALES_PIP_AFTER_WEEKS` (default 3)
+  consecutive weeks, a PIP is opened automatically on the next sync: measurable
+  milestones are created and a full PIP document is generated (Claude when
+  available, template otherwise). Active PIPs are re-evaluated on each sync and
+  resolve to **passed** (after the required consecutive recovered weeks) or
+  **failed** (when the PIP window elapses without sustained recovery).
+
+### Setup
+
+The module needs a [Cloudflare D1](https://developers.cloudflare.com/d1/)
+database for persistence. It works out of the box with a built-in **mock CRM**
+(a believable sample dataset) so you can try it before connecting a real CRM.
+
+```bash
+# 1. Create the D1 database
+npx wrangler d1 create moltbot-sales
+```
+
+Then uncomment the `d1_databases` block in `wrangler.jsonc` and paste in the
+returned `database_id`:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "SALES_DB",
+    "database_name": "moltbot-sales",
+    "database_id": "<paste the id from the command above>"
+  }
+]
+```
+
+```bash
+# 2. Redeploy (the schema self-initializes on first use)
+npm run deploy
+```
+
+Open the Control UI at `/_admin/`, select the **Sales Coaching** tab, and click
+**Load demo data**. This syncs the mock CRM and generates a coaching plan for
+every rep in one step, so you can immediately review the coaching and PIP output
+without wiring up a real CRM. (Use **Sync from CRM** instead to pull data without
+auto-generating coaching.)
+
+The demo roster covers a range of situations so you can test the coaching engine
+across every metric: a consistently healthy rep, one recently slipping, a
+chronic under-performer (auto-flagged for a PIP), a ramping new hire, plus
+single-issue archetypes — a pipeline drought, a discounter (thin margins), a
+low-activity rep, and a leaky funnel (low close rate).
+
+### Per-rep quotas and automatic sync
+
+- **Weekly quota per rep** — click a rep, then the quota link in the header to
+  set their weekly quota ($). This overrides whatever the CRM reports, so quota
+  attainment and pipeline coverage reflect your target. Leaving it unset uses
+  the CRM's value (or `SALES_DEFAULT_WEEKLY_QUOTA` for the HubSpot adapter).
+- **Automatic weekly sync** — a cron trigger (`Mondays 13:00 UTC`) syncs the CRM
+  and reconciles PIPs automatically, so the dashboard stays current without
+  anyone clicking **Sync**. It's a no-op until `SALES_DB` is configured.
+
+### Connecting a real CRM
+
+Set `SALES_CRM_PROVIDER=hubspot` and provide a HubSpot private-app token:
+
+```bash
+npx wrangler secret put HUBSPOT_ACCESS_TOKEN
+# SALES_CRM_PROVIDER can be set as a plain var in wrangler.jsonc or as a secret
+```
+
+HubSpot pipeline stages vary per account; the adapter uses HubSpot's built-in
+`hs_is_closed` / `hs_is_closed_won` flags plus a proposal-stage heuristic. See
+`src/sales/crm/hubspot.ts` to tune it (or add a Salesforce/other adapter — the
+`CrmAdapter` interface in `src/sales/crm/adapter.ts` is the only integration
+point). Targets and thresholds are all configurable via the `SALES_*` variables
+in the secrets table above.
+
 ## Optional: Cloudflare AI Gateway
 
 You can route API requests through [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for caching, rate limiting, analytics, and cost tracking. AI Gateway supports multiple providers — configure your preferred provider in the gateway and use these env vars:
@@ -381,6 +523,23 @@ The `AI_GATEWAY_*` variables take precedence over `ANTHROPIC_*` if both are set.
 | `SLACK_APP_TOKEN` | No | Slack app token |
 | `CDP_SECRET` | No | Shared secret for CDP endpoint authentication (see [Browser Automation](#optional-browser-automation-cdp)) |
 | `WORKER_URL` | No | Public URL of the worker (required for CDP) |
+| `SALES_CRM_PROVIDER` | No | Sales Coaching CRM source: `mock` (default), `hubspot`, or `salesforce` |
+| `HUBSPOT_ACCESS_TOKEN` | No | HubSpot private-app token (required when `SALES_CRM_PROVIDER=hubspot`) |
+| `SALES_COACH_MODEL` | No | Anthropic model for coaching generation (default `claude-opus-4-8`) |
+| `SALES_QUOTA_ATTAINMENT_TARGET` | No | Min weekly quota attainment, e.g. `0.9` (default) |
+| `SALES_PIPELINE_COVERAGE_TARGET` | No | Min pipeline coverage ratio, e.g. `3` (default) |
+| `SALES_CLOSE_RATE_TARGET` | No | Min close rate, e.g. `0.2` (default) |
+| `SALES_PROPOSALS_TARGET` | No | Min proposals sent per week, e.g. `4` (default) |
+| `SALES_PROFIT_MARGIN_TARGET` | No | Min average profit margin, e.g. `0.25` (default) |
+| `SALES_PIP_AFTER_WEEKS` | No | Consecutive at-risk weeks before a PIP is opened (default `3`) |
+| `SALES_PIP_DURATION_WEEKS` | No | PIP length in weeks (default `6`) |
+| `SALES_DEFAULT_WEEKLY_QUOTA` | No | Default weekly quota used by the HubSpot adapter (default `20000`) |
+| `SALES_CALL_PROVIDER` | No | Call analytics source: `mock` (default), `zoom`, `google_meet`, or `none` |
+| `SALES_TALK_RATIO_THRESHOLD` | No | Talk-ratio trigger threshold, e.g. `0.65` (default) |
+| `ZOOM_ACCOUNT_ID` | No | Zoom server-to-server OAuth account ID (for `SALES_CALL_PROVIDER=zoom`) |
+| `ZOOM_CLIENT_ID` | No | Zoom OAuth client ID |
+| `ZOOM_CLIENT_SECRET` | No | Zoom OAuth client secret |
+| `GOOGLE_MEET_ACCESS_TOKEN` | No | Google Meet REST OAuth token (for `SALES_CALL_PROVIDER=google_meet`) |
 
 ## Security Considerations
 
